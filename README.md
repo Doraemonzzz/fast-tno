@@ -7,7 +7,6 @@ $$
 \mathrm{Tno}: \mathbf x \to \mathbf o,\\
 \mathbf o= \mathbf T \mathbf x , \mathbf T\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}.
 $$
-
 In practice, we use the Tno operator in each feature dimension, so the complete formula is as follows:
 
 
@@ -18,7 +17,7 @@ $$
 
 Although the theoretical complexity is $O(nd\log n )$, it is slower than Attention when $n$ is small, so there is still a lot of room for optimization.
 
-# ToDO
+# ToDo
 
 
 - [x] Implemention use in our paper.
