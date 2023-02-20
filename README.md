@@ -1,6 +1,6 @@
 # fast-tno
 
-This repository aims to optimize the Tno operator proposed in the paper [**Toeplitz Neural Network for Sequence Modeling**](Toeplitz Neural Network for Sequence Modeling). The main equation is the following format:
+This repository aims to optimize the Tno operator proposed in the paper [**Toeplitz Neural Network for Sequence Modeling**](https://openreview.net/pdf?id=IxmWsm4xrua). The main equation is the following format:
 $$
 \mathrm{Tno}: \mathbf x \to \mathbf o,\\
 \mathbf o= \mathbf T \mathbf x , \mathbf T\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}.
