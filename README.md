@@ -10,9 +10,6 @@ $$
 
 In practice, we use the Tno operator in each feature dimension, so the complete formula is as follows:
 
-
-In practice, we use the Tno operator in each feature dimension, so the complete formula is as follows:
-
 $$
 \mathbf O[:, i]= \mathbf T_i \mathbf X[:, i], \\
 \mathbf O[:, i]\in \mathbb R^{n\times 1}, \mathbf T_i\in \mathbb R^{n\times n},  \mathbf X[:, i]\in \mathbb R^{n\times 1}.
