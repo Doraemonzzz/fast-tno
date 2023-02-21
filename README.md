@@ -7,8 +7,9 @@ $$
 \mathrm{Tno}: \mathbf x \to \mathbf o,\\
 \mathbf o= \mathbf T \mathbf x , \mathbf T\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}.
 $$
-In practice, we use the Tno operator in each feature dimension, so the complete formula is as follows:
 
+
+In practice, we use the Tno operator in each feature dimension, so the complete formula is as follows:
 
 $$
 \mathbf O[:, i]= \mathbf T_i \mathbf X[:, i], \\
