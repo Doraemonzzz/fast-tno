@@ -45,7 +45,7 @@ $$
 o_i= \mathbf \sum_{j=0}^{i}t_{i-j} x_j
 $$
 
-注意为了高效实现，两者对应的cuda应该会有所不同，为了区分这两种情形，将一般情形成为non causal，将language model的单向情形成为causal，后续会分别进行讨论。
+注意为了高效实现，两者对应的cuda应该会有所不同，为了区分这两种情形，将一般情形称为non causal，将language model的单向情形称为causal，后续会分别进行讨论。
 
 对于多维版本，主要逐维度操作即可。
 
