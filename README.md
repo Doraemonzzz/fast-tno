@@ -21,6 +21,8 @@ Although the theoretical complexity is $O(nd\log n )$, it is slower than Attenti
 
 
 - [x] Implemention use in our paper.
+- [x] Add note_cnt.
+- [x] Add forward and backward derivation.
 
 
 
