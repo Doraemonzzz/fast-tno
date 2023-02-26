@@ -6,15 +6,14 @@
 
 $$
 \begin{aligned}
-\mathbf o&= \mathbf T \mathbf x\\
-\mathbf{T}&=\left[\begin{array}{cccc}
+\mathbf o &= \mathbf T \mathbf x\\
+\mathbf{T} &=\left[\begin{matrix}
 t_0 & t_{-1} & \cdots & t_{-n+1} \\
 t_1 & t_0 & & \vdots \\
 \vdots & & t_0 & t_{-1} \\
 t_{n-1} & \cdots & t_1 & t_0
-\end{array}\right] \in \mathbb{R}^{n \times n}
- \\
-\mathbf T&\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}
+\end{matrix}\right] \in \mathbb{R}^{n \times n}\\
+\mathbf T &\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}
 \end{aligned}
 $$
 
@@ -86,7 +85,7 @@ $$
 
 $$
 \mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}
-&=\left[\begin{matrix}
+=\left[\begin{matrix}
 0 & \cdots &  0 & x_0 & x_1 & \cdots &x_{n-1} \\
 0 & 0& x_0 & x_1 & \cdots &x_{n-1} & 0\\
 \vdots & \vdots & \vdots  & \vdots & \vdots  &\vdots  & \vdots  \\
@@ -170,7 +169,7 @@ $$
 写成矩阵形式为：
 
 $$
-\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}&=\left[\begin{matrix}
+\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}=\left[\begin{matrix}
 0 & \cdots &  0 & x_0  \\
 0 & 0& x_0 & x_1 \\
 \vdots & \vdots& \vdots  & \vdots   \\
