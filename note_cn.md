@@ -3,10 +3,10 @@
 ## 前向和反向
 
 首先给出Tno的核心操作：
+
 $$
 \begin{aligned}
 \mathbf o&= \mathbf T \mathbf x\\
-
 \mathbf{T}&=\left[\begin{array}{cccc}
 t_0 & t_{-1} & \cdots & t_{-n+1} \\
 t_1 & t_0 & & \vdots \\
@@ -19,15 +19,16 @@ t_{n-1} & \cdots & t_1 & t_0
 $$
 
 写成求和形式为：
+
 $$
 o_i= \mathbf \sum_{j=0}^{n-1}t_{i-j} x_j
 $$
 
 在language model中，因为单向的原因，上三角部分都为0，即：
+
 $$
 \begin{aligned}
 \mathbf o&= \mathbf T \mathbf x\\
-
 \mathbf{T}&=\left[\begin{array}{cccc}
 t_0 & 0 & \cdots &0 \\
 t_1 & t_0 & & \vdots \\
@@ -40,6 +41,7 @@ t_{n-1} & \cdots & t_1 & t_0
 $$
 
 写成求和形式为：
+
 $$
 o_i= \mathbf \sum_{j=0}^{i}t_{i-j} x_j
 $$
@@ -69,31 +71,37 @@ $$
 #### 反向
 
 注意到：
+
 $$
  o_i= \mathbf \sum_{j=0}^{n-1}t_{i-j} x_j=\mathbf \sum_{j=i-(n-1)}^{i}x_{i-j} t_j
 $$
 
 所以：
+
 $$
 \frac{\partial o_i}{\partial t_j}= x_{i-j}, j=i-(n-1), \ldots, i
 $$
 
 写成矩阵形式为：
+
 $$
-\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}&=\left[\begin{matrix}
+\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}
+&=\left[\begin{matrix}
 0 & \cdots &  0 & x_0 & x_1 & \cdots &x_{n-1} \\
 0 & 0& x_0 & x_1 & \cdots &x_{n-1} & 0\\
 \vdots & \vdots & \vdots  & \vdots & \vdots  &\vdots  & \vdots  \\
 x_0 & x_1 & \cdots &x_{n-1} & 0 & 0 & 0
-\end{matrix}\right]\in \mathbb R^{n\times (2n- 1)}
+\end{matrix}\right] \in \mathbb R^{n\times (2n- 1)}
 $$
 
 假设：
+
 $$
 \mathbf b \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}
 $$
 
 那么：
+
 $$
 \begin{aligned}
 \mathbf c &\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{(2n-1)\times 1}\\
@@ -148,16 +156,19 @@ $$
 #### 反向
 
 注意到：
+
 $$
 o_i= \mathbf \sum_{j=0}^{i}t_{i-j} x_j=\mathbf \sum_{j=0}^{i}x_{i-j} t_j
 $$
 
 所以：
+
 $$
 \frac{\partial o_i}{\partial t_j}= x_{i-j}, j=0, \ldots, i
 $$
 
 写成矩阵形式为：
+
 $$
 \mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}&=\left[\begin{matrix}
 0 & \cdots &  0 & x_0  \\
@@ -168,11 +179,13 @@ x_0 & x_1 & \cdots &x_{n-1}
 $$
 
 假设：
+
 $$
 \mathbf b \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}
 $$
 
 那么：
+
 $$
 \begin{aligned}
 \mathbf c &\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{b\times 1}\\
@@ -184,7 +197,6 @@ x_0 &x_1  & \cdots & x_{n-1} \\
 \end{matrix}\right]\mathbf b   \\
 c_i & = 
 \sum_{j=0}^{n - 1 -i} x_{j}b_{i+j}
-
 \end{aligned}
 $$
 
