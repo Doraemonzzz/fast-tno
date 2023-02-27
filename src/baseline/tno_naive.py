@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+##### to be fixed
 class TnoNaive(nn.Module):
     def __init__(self):
         super().__init__()
@@ -17,18 +18,14 @@ class TnoNaive(nn.Module):
         Returns:
             o: b, m, d;
         """
-        n = x.shape[1]
-        zero = t[:, 0, None]
-        pos = t[:, 1: n]
-        neg = t[:, n + 1:]
-        c = torch.cat([zero, pos], dim=-2)
-        r = torch.cat([zero, neg.flip(1)], dim=-2)
-        vals = torch.cat([r, c[:, 1:].flip(1)], dim=-2)
-        n = c.shape[-2]
-        shape = n, n
-        i, j = torch.ones(n, n).nonzero().T
-        t_matrix = vals[:, j - i].reshape(n, n, -1)
-
-        o = torch.einsum('n m d, b m d -> b n d', t_matrix, x)
+        o = torch.zeros_like(x).to(x)
+        b, n, d = x.shape
+        for i in range(b):
+            for j in range(d):
+                for u in range(n):
+                    d = 0
+                    for v in range(u + 1):
+                        d += t[v][j] * x[i][j][v]
+                    t[u][j] = d
         
         return o

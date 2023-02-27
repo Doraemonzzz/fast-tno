@@ -6,14 +6,15 @@
 
 $$
 \begin{aligned}
-\mathbf o &= \mathbf T \mathbf x\\
-\mathbf{T} &=\left[\begin{matrix}
+\mathbf o&= \mathbf T \mathbf x\\
+\mathbf{T}&=\left[\begin{array}{cccc}
 t_0 & t_{-1} & \cdots & t_{-n+1} \\
 t_1 & t_0 & & \vdots \\
 \vdots & & t_0 & t_{-1} \\
 t_{n-1} & \cdots & t_1 & t_0
-\end{matrix}\right] \in \mathbb{R}^{n \times n}\\
-\mathbf T &\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}
+\end{array}\right] \in \mathbb{R}^{n \times n}
+ \\
+\mathbf T&\in \mathbb R^{n\times n}, \mathbf x, \mathbf o \in \mathbb R^{n\times 1}
 \end{aligned}
 $$
 
@@ -45,7 +46,7 @@ $$
 o_i= \mathbf \sum_{j=0}^{i}t_{i-j} x_j
 $$
 
-注意为了高效实现，两者对应的cuda应该会有所不同，为了区分这两种情形，将一般情形称为non causal，将language model的单向情形称为causal，后续会分别进行讨论。
+注意为了高效实现，两者对应的cuda应该会有所不同，为了区分这两种情形，将一般情形成为non causal，将language model的单向情形成为causal，后续会分别进行讨论。
 
 对于多维版本，主要逐维度操作即可。
 
@@ -85,7 +86,7 @@ $$
 
 $$
 \mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}
-=\left[\begin{matrix}
+&=\left[\begin{matrix}
 0 & \cdots &  0 & x_0 & x_1 & \cdots &x_{n-1} \\
 0 & 0& x_0 & x_1 & \cdots &x_{n-1} & 0\\
 \vdots & \vdots & \vdots  & \vdots & \vdots  &\vdots  & \vdots  \\
@@ -142,7 +143,7 @@ $$
 
 输入：
 
-- $\mathbf t= [t_{n-1}, \ldots, t_0]^\top \in \mathbb R^{n\times 1}$；
+- $\mathbf t= [t_0, \ldots, t_{n-1}]^\top \in \mathbb R^{n\times 1}$；
 - $\mathbf x \in \mathbb R^{n\times 1}$；
 
 输出：
@@ -163,39 +164,60 @@ $$
 所以：
 
 $$
-\frac{\partial o_i}{\partial t_j}= x_{i-j}, j=0, \ldots, i
+\frac{\partial o_i}{\partial t_j}= x_{i-j},\frac{\partial o_i}{\partial x_j}= t_{i-j}, j=0, \ldots, i 
 $$
 
 写成矩阵形式为：
 
 $$
-\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}=\left[\begin{matrix}
-0 & \cdots &  0 & x_0  \\
-0 & 0& x_0 & x_1 \\
+\begin{aligned}
+\mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}&=\left[\begin{matrix}
+x_0  & 0 & \cdots &  0 \\
+x_1 & x_0 &  \cdots & 0 \\
 \vdots & \vdots& \vdots  & \vdots   \\
-x_0 & x_1 & \cdots &x_{n-1} 
+x_{n-1}& x_{n-2} & \cdots &x_{0} 
+\end{matrix}\right]\in \mathbb R^{n\times n} \\
+\mathbf b\triangleq \frac{\partial \mathbf o}{\partial \mathbf x}&=\left[\begin{matrix}
+t_0  & 0 & \cdots &  0 \\
+t_1 & t_0 &  \cdots & 0 \\
+\vdots & \vdots& \vdots  & \vdots   \\
+t_{n-1}& t_{n-2} & \cdots &t_{0} 
 \end{matrix}\right]\in \mathbb R^{n\times n}
+\end{aligned}
 $$
 
 假设：
 
 $$
-\mathbf b \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}
+\mathbf c \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}
 $$
 
 那么：
 
 $$
 \begin{aligned}
-\mathbf c &\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{b\times 1}\\
+\mathbf d
+&= \nabla_{\mathcal L} \mathbf t \\
+&\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}\\
 &= \left[\begin{matrix}
 x_0 &x_1  & \cdots & x_{n-1} \\
 0 & x_0 & \cdots &x_{n-1} \\
 \vdots & \vdots & \vdots & \vdots \\
 0& 0 & 0 & x_0 
-\end{matrix}\right]\mathbf b   \\
-c_i & = 
-\sum_{j=0}^{n - 1 -i} x_{j}b_{i+j}
+\end{matrix}\right]\mathbf c  \\
+d_i & = 
+\sum_{j=0}^{n - 1 -i} x_{j}c_{i+j} \\
+\mathbf e
+&= \nabla_{\mathcal L} \mathbf x \\
+&\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf x}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}\\
+&= \left[\begin{matrix}
+t_0 &t_1  & \cdots & t_{n-1} \\
+0 & t_0 & \cdots &t_{n-1} \\
+\vdots & \vdots & \vdots & \vdots \\
+0& 0 & 0 & x_0 
+\end{matrix}\right]\mathbf c  \\
+e_i & = 
+\sum_{j=0}^{n - 1 -i} t_{j}c_{i+j}
 \end{aligned}
 $$
 
@@ -204,11 +226,14 @@ $$
 输入：
 
 - $\mathbf b \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}$；
+- $\mathbf c \triangleq \nabla_{\mathcal L} \mathbf o \in \mathbb R^{n\times 1}$；
 
 输出：
 
-- $\mathbf c \triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}$；
-- $c_i  = \sum_{j=0}^{n - 1 -i} x_{j}b_{i+j}$​；
+- $\mathbf d \triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}$；
+- $d_i  = \sum_{j=0}^{n - 1 -i} x_{j}c_{i+j}$​；
+- $\mathbf e \triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf x}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}$；
+- $e_i  = \sum_{j=0}^{n - 1 -i}t_{j}c_{i+j}$​；
 
 
 

@@ -28,4 +28,5 @@ Although the theoretical complexity is $O(nd\log n )$, it is slower than Attenti
 
 # Reference
 
-- https://gist.github.com/iacolippo/9611c6d9c7dfc469314baeb5a69e7e1b
+- [https://gist.github.com/iacolippo/9611c6d9c7dfc469314baeb5a69e7e1b](https://gist.github.com/iacolippo/9611c6d9c7dfc469314baeb5a69e7e1b)
+- [https://github.com/BlinkDL/RWKV-CUDA](https://github.com/BlinkDL/RWKV-CUDA)

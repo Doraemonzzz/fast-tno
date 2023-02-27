@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class TnoFft(nn.Module):
+class TnoFFT(nn.Module):
     def __init__(self):
         super().__init__()
         
