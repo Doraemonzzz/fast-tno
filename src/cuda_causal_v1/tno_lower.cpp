@@ -16,7 +16,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("backward", &backward, "tno backward");
 }
 
-TORCH_LIBRARY(tno_causal, m) {
+TORCH_LIBRARY(tno_causal_v1, m) {
     m.def("forward", forward);
     m.def("backward", backward);
 }

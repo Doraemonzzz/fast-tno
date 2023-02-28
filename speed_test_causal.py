@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2
 
 
 def get_model_name(model):
@@ -24,6 +24,7 @@ def speed_test(b, n, d, file="tmp"):
         TnoFFT().cuda(),
         TnoMatrix(causal=True).cuda(),
         TnoCausalV1().cuda(),
+        TnoCausalV2().cuda(),
     ]
 
     ###### warmup

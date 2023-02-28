@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.cpp_extension import load
 
 tno_causal_cuda = load(
-    name="tno_causal",
+    name="tno_causal_v2",
     sources=["src/cuda_causal_v2/tno_lower.cpp", "src/cuda_causal_v2/tno_lower.cu"],
     verbose=True,
 )

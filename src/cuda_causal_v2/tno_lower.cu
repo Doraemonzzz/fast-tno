@@ -11,11 +11,18 @@ __global__ void lower_kernel(const int b, const int d, const int n, const F* T, 
         y: b, d, n
     **/
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= b * d) {
+        return;
+    }
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    if (i >= n) {
+        return;
+    }
     int b_ = idx / d;
     int d_ = idx % d;
     int t_offset = d_ * n;
     int x_offset = b_ * d * n + d_ * n;
-    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    
 
     F s = 0;
     for (int j = 0; j <= i; j++) {
@@ -37,11 +44,17 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
         gx: b, d, n
     **/
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= b * d) {
+        return;
+    }
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    if (i >= n) {
+        return;
+    }
     int b_ = idx / d;
     int d_ = idx % d;
     int t_offset = threadIdx.x * n;
     int x_offset = b_ * d * n + d_ * n;
-    int i = blockIdx.y * blockDim.y + threadIdx.y;
 
     F s_x = 0;
     F s_T = 0;
@@ -54,14 +67,14 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
 }
 
 void forward_cuda(int b, int d, int n, float* T, float* x, float* y) {
-    int c = 64;
+    int c = 32;
     dim3 DimGrid((b * d + c - 1) / c, (n + c - 1) / c);
     dim3 DimBlock(c, c);
     lower_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, y);
 }
 
 void backward_cuda(int b, int d, int n, float* T, float* x, float* gy, float* gT, float* gx) {
-    int c = 64;
+    int c = 32;
     dim3 DimGrid((b * d + c - 1) / c, (n + c - 1) / c);
     dim3 DimBlock(c, c);
     backward_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, gy, gT, gx);

@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2
 
 
 def get_model_name(model):
