@@ -35,8 +35,9 @@ __global__ void upper_kernel(const int b, const int d, const int n, const F* T, 
     output:
         y: b, d, n
     **/
-    int b_ = blockIdx.x;
-    int d_ = threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int b_ = idx / d;
+    int d_ = idx % d;
     int t_offset = threadIdx.x * n;
     int x_offset = b_ * d * n + d_ * n;
 

@@ -34,9 +34,9 @@ class TnoCausal(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, gy):
-        ctx.b = b
-        ctx.d = d
-        ctx.n = n
+        b = ctx.b
+        d = ctx.d
+        n = ctx.n
         T, x = ctx.saved_tensors
         gT = torch.empty((b, d, n), device=gy.device)
         gx = torch.empty((b, d, n), device=gy.device)
@@ -47,7 +47,7 @@ class TnoCausal(torch.autograd.Function):
         # b, d, n -> b, n, d
         gx = gx.transpose(2, 1)
 
-        return None, None, None, gT, gx
+        return gT, gx
     
 class TnoCausalV1(nn.Module):
     def __init__(self):
