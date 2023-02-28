@@ -2,16 +2,16 @@ import torch
 import sys
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3
 
 
 def get_model_name(model):
-    name = str(type(model)).split(".")[-2].split("'")[0]
+    name = str(type(model)).split(".")[-1].split("'")[0]
 
     return name
 
 
-def speed_test(b, n, d, file="tmp"):
+def speed_test(b, n, d):
     ###### data initialize
     t_zero = torch.randn(1, d)
     t_pos = torch.randn(n - 1, d)
@@ -26,6 +26,7 @@ def speed_test(b, n, d, file="tmp"):
         TnoMatrix(causal=True).cuda(),
         TnoCausalV1().cuda(),
         TnoCausalV2().cuda(),
+        TnoCausalV3().cuda(),
     ]
 
     ###### warmup
@@ -61,7 +62,7 @@ def speed_test(b, n, d, file="tmp"):
 b = 8
 d = 64
 for n in [128, 256, 512, 1024, 2048, 4096]:
-    fb = open('log/n_test_{n}.log', 'w')
+    fb = open(f'log/n_test_{n}.log', 'w')
     sys.stdout = fb
     speed_test(b, n, d)
     fb.close()
