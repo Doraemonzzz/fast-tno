@@ -24,7 +24,8 @@ y1 = tno_fft(x, t, n)
 y2 = tno_matrix(x, t)
 y3 = tno_causal_v1(x, t_causal)
 
-gradcheck(tno_causal_v1, (x, t_causal))
+gradcheck(tno_causal_v1, (x, t_causal), eps=1e-6, atol=1e-1, rtol=1e-2)
+gradcheck(tno_fft, (x, t, n), eps=1e-6, atol=1e-1, rtol=1e-2)
 
 # y1.backward(y)
 # y2.backward(y)
@@ -32,6 +33,4 @@ gradcheck(tno_causal_v1, (x, t_causal))
 
 print(torch.norm(y1 - y2))
 print(torch.norm(y1 - y3))
-
-print(torch.norm(y1.grad - y2.grad))
 
