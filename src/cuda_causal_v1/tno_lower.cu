@@ -83,26 +83,6 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
 void forward_cuda(int b, int d, int n, float* T, float* x, float* y) {
     dim3 DimGrid(b);
     dim3 DimBlock(d);
-    // printf("%d %d\n", b, d);
-    // for (int i = 0; i < b; i++) {
-    //     for (int j = 0; j < d; j++) {
-    //         for (int k = 0; k < n; k++) {
-    //             int index = i * d * n + j * n + k;
-    //             printf("%lf ", x[index]);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n");
-    // }
-    // for (int j = 0; j < d; j++) {
-    //     for (int k = 0; k < n; k++) {
-    //         int index = j * n + k;
-    //         printf("%lf ", T[index]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\n");
-    // printf("%d %lf\n", T, T[0]);
     lower_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, y);
 }
 
