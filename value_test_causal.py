@@ -27,6 +27,7 @@ models = [
     TnoFFT().cuda(),
     TnoMatrix(causal=True).cuda(),
     TnoCausalV1().cuda(),
+    TnoCausalV2().cuda(),
 ]
 
 

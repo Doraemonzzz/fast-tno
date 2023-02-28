@@ -5,7 +5,7 @@ from torch.utils.cpp_extension import load
 
 tno_causal_cuda = load(
     name="tno_causal",
-    sources=["src/cuda_causal_v1/tno_lower.cpp", "src/cuda_causal_v1/tno_lower.cu"],
+    sources=["src/cuda_causal_v2/tno_lower.cpp", "src/cuda_causal_v2/tno_lower.cu"],
     verbose=True,
 )
 
@@ -54,7 +54,7 @@ class TnoCausal(torch.autograd.Function):
         return gT, gx
 
 
-class TnoCausalV1(nn.Module):
+class TnoCausalV2(nn.Module):
     def __init__(self):
         super().__init__()
 
