@@ -39,8 +39,12 @@ def speed_test(b, n, d):
     for model in models:
         with torch.autograd.profiler.profile(use_cuda=True) as prof:
             y_res.append(model(x, t))
-        print(f'{get_model_name(model)} forward\n', prof.key_averages(group_by_stack_n=5).table(
-                sort_by='self_cuda_time_total', row_limit=5))
+        print(
+            f"{get_model_name(model)} forward\n",
+            prof.key_averages(group_by_stack_n=5).table(
+                sort_by="self_cuda_time_total", row_limit=5
+            ),
+        )
 
     ##### backward test
     print("Backward test:")
@@ -54,15 +58,20 @@ def speed_test(b, n, d):
         loss = (y_res[i] ** 2).sum()
         with torch.autograd.profiler.profile(use_cuda=True) as prof:
             loss.backward()
-            
-        print(f'{get_model_name(models[i])} backward\n', prof.key_averages(group_by_stack_n=5).table(
-                sort_by='self_cuda_time_total', row_limit=5))
-        
+
+        print(
+            f"{get_model_name(models[i])} backward\n",
+            prof.key_averages(group_by_stack_n=5).table(
+                sort_by="self_cuda_time_total", row_limit=5
+            ),
+        )
+
+
 # speed_test(2, 16, 32)
 b = 8
 d = 64
 for n in [128, 256, 512, 1024, 2048, 4096]:
-    fb = open(f'log/n_test_{n}.log', 'w')
+    fb = open(f"log/n_test_{n}.log", "w")
     sys.stdout = fb
     speed_test(b, n, d)
     fb.close()

@@ -38,7 +38,7 @@ class TnoCausal(torch.autograd.Function):
         gx = torch.empty((b, n, d), device=gy.device)
         tno_causal_cuda.backward(b, d, n, T, x, gy, gT, gx)
         gT = torch.sum(gT, dim=0)
-        
+
         return gT, gx
 
 

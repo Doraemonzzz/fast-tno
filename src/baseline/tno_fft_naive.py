@@ -11,7 +11,7 @@ class TnoFFT(nn.Module):
 
         Args:
             x (Tensor): b, n, d;
-            t (Tensor): 2 * max(n, m), d; 
+            t (Tensor): 2 * max(n, m), d;
                         t0, t1, ..., t(n-1), t0, t-(n-1), ... , t-1;
             m (Tensor): output dimension;
 

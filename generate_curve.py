@@ -1,5 +1,10 @@
 import matplotlib.pyplot as plt
 import os
+import numpy as np
+import seaborn as sns
+
+sns.set()
+
 
 def get_stat(file_path):
     stat = {}
@@ -18,15 +23,18 @@ def get_stat(file_path):
                     hardware = "CPU"
                 else:
                     hardware = "GPU"
-                
+
                 string = data.split()[-1]
                 if "us" in string:
                     time = float(string[:-2])
-                else:
+                elif "ms" in string:
                     time = 100 * float(string[:-2])
+                else:
+                    time = 10000 * float(string[:-2])
                 stat[hardware][stage][name] = time
-    
+
     return stat
+
 
 def get_stat_loop(prefix, dir="log"):
     data = {}
@@ -36,17 +44,18 @@ def get_stat_loop(prefix, dir="log"):
             file_path = os.path.join(dir, file)
             stat = get_stat(file_path)
             data[n] = stat
-            
+
     return data
 
-def draw(stat):
+
+def draw(stat, prefix="n"):
     seq = sorted(list(stat.keys()))
     res = dict()
     for hardware in ["CPU", "GPU"]:
         res[hardware] = dict()
         for mode in ["forward", "backward"]:
             res[hardware][mode] = dict()
-        
+
     for i in seq:
         for hardware in ["CPU", "GPU"]:
             for mode in ["forward", "backward"]:
@@ -55,10 +64,24 @@ def draw(stat):
                         res[hardware][mode][name] = []
                     res[hardware][mode][name].append(stat[i][hardware][mode][name])
 
-    
-                    
+    for hardware in ["CPU", "GPU"]:
+        for mode in ["forward", "backward"]:
+            for name in res[hardware][mode]:
+                sns.lineplot(
+                    x=seq,
+                    y=np.log(res[hardware][mode][name]),
+                    label=name,
+                    marker="o",
+                    markersize=4,
+                )
+
+            plt.xlabel(r"$n$")
+            plt.ylabel(r"log(us)")
+            plt.title(f"{prefix} {hardware} {mode}")
+            plt.legend()
+            plt.savefig(f"image/{prefix}_{hardware}_{mode}.pdf", bbox_inches="tight")
+            plt.close()
+
 
 stat = get_stat_loop("n_test")
-print(stat)
-print(sorted(list(stat.keys())))
-draw(stat)
+draw(stat, "n")
