@@ -1,4 +1,5 @@
 import torch
+import sys
 from torch.autograd import gradcheck
 
 from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2
@@ -57,4 +58,10 @@ def speed_test(b, n, d, file="tmp"):
                 sort_by='self_cuda_time_total', row_limit=5))
         
 # speed_test(2, 16, 32)
-speed_test(b=8, n=2048, d=64)
+b = 8
+d = 64
+for n in [128, 256, 512, 1024, 2048, 4096]:
+    fb = open('log/n_test_{n}.log', 'w')
+    sys.stdout = fb
+    speed_test(b, n, d)
+    fb.close()

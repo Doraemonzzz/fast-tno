@@ -36,6 +36,7 @@ class TnoCausal(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, gy):
+        # gy: b, n, d
         b = ctx.b
         d = ctx.d
         n = ctx.n
