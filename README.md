@@ -17,6 +17,18 @@ $$
 
 Although the theoretical complexity is $O(nd\log n )$, it is slower than Attention when $n$ is small, so there is still a lot of room for optimization.
 
+
+
+# Speed test
+
+Forward mode:
+
+![](./image/n_GPU_forward.jpg)
+
+Backward mode:
+
+![](./image/n_GPU_backward.jpg)
+
 # ToDo
 
 
@@ -28,7 +40,8 @@ Although the theoretical complexity is $O(nd\log n )$, it is slower than Attenti
 - [x] Add speed test(causal).
 - [x] Add forward and backward code(causal v2).
 - [x] Add no transpose version(causal v3).
-- [x] Add stat and curve.
+- [x] Add cpu/gpu speed stat and curve.
+- [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
 - [ ] Add develop log.
 

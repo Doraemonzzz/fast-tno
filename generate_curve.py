@@ -77,9 +77,9 @@ def draw(stat, prefix="n"):
 
             plt.xlabel(r"$n$")
             plt.ylabel(r"log(us)")
-            plt.title(f"{prefix} {hardware} {mode}")
+            plt.title(f"{hardware} {mode}: {prefix} vs time")
             plt.legend()
-            plt.savefig(f"image/{prefix}_{hardware}_{mode}.pdf", bbox_inches="tight")
+            plt.savefig(f"image/{prefix}_{hardware}_{mode}.jpg", bbox_inches="tight")
             plt.close()
 
 
