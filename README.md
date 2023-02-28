@@ -29,7 +29,7 @@ Backward mode:
 
 ![](./image/n_GPU_backward.jpg)
 
-# ToDo
+# Todo
 
 
 - [x] Implemention use in our paper.
@@ -41,9 +41,10 @@ Backward mode:
 - [x] Add forward and backward code(causal v2).
 - [x] Add no transpose version(causal v3).
 - [x] Add cpu/gpu speed stat and curve.
+- [ ] Add develop log.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
-- [ ] Add develop log.
+- [ ] 
 
 
 

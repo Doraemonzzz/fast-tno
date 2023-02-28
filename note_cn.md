@@ -242,3 +242,29 @@ $$
 ### 小结
 
 从上述推导可以看出，需要实现三个cuda，分别是下三角，上三角以及一般情形的Toeplitz matrix vector production。
+
+
+
+
+
+## CUDA版本
+
+### V1
+
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
+- 在$b, d$维度并行处理；
+
+
+
+### V2
+
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
+- 在$b, d, n$维度并行处理；
+
+
+
+### V3
+
+- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- 在$b, d, n$维度并行处理；
+
