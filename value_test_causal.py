@@ -3,10 +3,12 @@ from torch.autograd import gradcheck
 
 from src import TnoMatrix, TnoFFT, TnoCausalV1
 
+
 def get_model_name(model):
     name = str(type(model)).split(".")[-2].split("'")[0]
-    
+
     return name
+
 
 ###### data initialize
 b = 2
@@ -28,16 +30,17 @@ models = [
 ]
 
 
-
 ##### forward test
 y_res = []
 for model in models:
     y_res.append(model(x, t))
 
-print("Forward test:") 
+print("Forward test:")
 n = len(y_res)
 for i in range(1, n):
-    print(f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(y_res[i] - y_res[0]).item()}")
+    print(
+        f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(y_res[i] - y_res[0]).item()}"
+    )
 
 ##### backward test
 t_grad_res = []
@@ -47,18 +50,22 @@ for i in range(n):
         t.grad.data.zero_()
     if x.grad != None:
         x.grad.data.zero_()
-        
+
     loss = (y_res[i] ** 2).sum()
     loss.backward()
-    
+
     t_grad_res.append(t.grad.data.clone())
     x_grad_res.append(x.grad.data.clone())
 
 print("Backward test:")
 print("T grad test:")
 for i in range(1, n):
-    print(f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(t_grad_res[i] - t_grad_res[0]).item()}")
-    
+    print(
+        f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(t_grad_res[i] - t_grad_res[0]).item()}"
+    )
+
 print("x grad test:")
 for i in range(1, n):
-    print(f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(x_grad_res[i] - x_grad_res[0]).item()}")
+    print(
+        f"Differ Norm between {get_model_name(models[i])} and {get_model_name(models[0])}: {torch.norm(x_grad_res[i] - x_grad_res[0]).item()}"
+    )

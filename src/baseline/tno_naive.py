@@ -5,7 +5,7 @@ import torch.nn as nn
 class TnoNaive(nn.Module):
     def __init__(self):
         super().__init__()
-        
+
     def forward(self, x, t):
         """_summary_
 
@@ -27,5 +27,5 @@ class TnoNaive(nn.Module):
                     for v in range(u + 1):
                         d += t[v][j] * x[i][j][v]
                     t[u][j] = d
-        
+
         return o

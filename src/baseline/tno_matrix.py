@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 
+
 class TnoMatrix(nn.Module):
     def __init__(self, causal=False):
         super().__init__()
         self.causal = causal
-    
+
     def forward(self, x, t):
         """_summary_
 
@@ -21,11 +22,11 @@ class TnoMatrix(nn.Module):
         n = x.shape[1]
         t = t.unsqueeze(0)
         zero = t[:, 0, None]
-        pos = t[:, 1: n]
+        pos = t[:, 1:n]
         if self.causal:
             neg = torch.zeros_like(pos).to(t)
         else:
-            neg = t[:, n + 1:]
+            neg = t[:, n + 1 :]
         c = torch.cat([zero, pos], dim=-2)
         r = torch.cat([zero, neg.flip(1)], dim=-2)
         vals = torch.cat([r, c[:, 1:].flip(1)], dim=-2)
@@ -34,6 +35,6 @@ class TnoMatrix(nn.Module):
         i, j = torch.ones(n, n).nonzero().T
         t_matrix = vals[:, j - i].reshape(n, n, -1)
 
-        o = torch.einsum('n m d, b m d -> b n d', t_matrix, x)
-        
+        o = torch.einsum("n m d, b m d -> b n d", t_matrix, x)
+
         return o
