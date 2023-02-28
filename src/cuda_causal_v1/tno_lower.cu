@@ -62,10 +62,11 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
         gT: b, d, n
         gx: b, d, n
     **/
-    int b_ = blockIdx.x;
-    int d_ = threadIdx.x;
-    int x_offset = b_ * d * n + d_ * n;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int b_ = idx / d;
+    int d_ = idx % d;
     int t_offset = threadIdx.x * n;
+    int x_offset = b_ * d * n + d_ * n;
 
     for (int i = 0; i < n; i++) {
         F s_x = 0;

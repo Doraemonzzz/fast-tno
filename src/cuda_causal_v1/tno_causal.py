@@ -40,12 +40,14 @@ class TnoCausal(torch.autograd.Function):
         T, x = ctx.saved_tensors
         gT = torch.empty((b, d, n), device=gy.device)
         gx = torch.empty((b, d, n), device=gy.device)
-        tno_causal_cuda.backward(b, d, n, T, x, gy.contiguous(), gT, gx)
+        # b, n, d -> b, d, n
+        gy = gy.transpose(2, 1).contiguous()
+        tno_causal_cuda.backward(b, d, n, T, x, gy, gT, gx)
         gT = torch.sum(gT, dim=0)
+        # d, n -> n, d
+        gT = gT.transpose(1, 0).contiguous()
         # b, d, n -> b, n, d
-        gT = gT.transpose(1, 0)
-        # b, d, n -> b, n, d
-        gx = gx.transpose(2, 1)
+        gx = gx.transpose(2, 1).contiguous()
 
         return gT, gx
     

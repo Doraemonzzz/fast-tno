@@ -201,7 +201,7 @@ $$
 &\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf t}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}\\
 &= \left[\begin{matrix}
 x_0 &x_1  & \cdots & x_{n-1} \\
-0 & x_0 & \cdots &x_{n-1} \\
+0 & x_0 & \cdots &x_{n-2} \\
 \vdots & \vdots & \vdots & \vdots \\
 0& 0 & 0 & x_0 
 \end{matrix}\right]\mathbf c  \\
@@ -212,7 +212,7 @@ d_i & =
 &\triangleq  \left[\frac{\partial \mathbf o}{\partial \mathbf x}\right]^\top  \nabla_{\mathcal L} \mathbf o  \in \mathbb R^{n\times 1}\\
 &= \left[\begin{matrix}
 t_0 &t_1  & \cdots & t_{n-1} \\
-0 & t_0 & \cdots &t_{n-1} \\
+0 & t_0 & \cdots &t_{n-2} \\
 \vdots & \vdots & \vdots & \vdots \\
 0& 0 & 0 & x_0 
 \end{matrix}\right]\mathbf c  \\

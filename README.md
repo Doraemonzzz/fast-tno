@@ -23,7 +23,9 @@ Although the theoretical complexity is $O(nd\log n )$, it is slower than Attenti
 - [x] Implemention use in our paper.
 - [x] Add note_cnt.
 - [x] Add forward and backward derivation.
-- [ ] Add forward causal.
+- [x] Add forward and backward code(causal v1).
+- [x] Add forward and backward value check(causal).
+- [ ] Add speed test(causal).
 
 
 
