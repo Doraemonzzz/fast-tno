@@ -1,7 +1,7 @@
 #include<stdio.h>
 #define B 2
-#define N 16
-#define D 32
+#define N 64
+#define D 8
 
 template<typename F>
 __global__ void lower_kernel(const int b, const int d, const int n, const F* T, const F* x, F* y) {

@@ -75,7 +75,7 @@ def draw(stat, prefix="n"):
                     markersize=4,
                 )
 
-            plt.xlabel(r"$n$")
+            plt.xlabel(rf"${prefix}$")
             plt.ylabel(r"log(us)")
             plt.title(f"{hardware} {mode}: {prefix} vs time")
             plt.legend()
@@ -83,5 +83,11 @@ def draw(stat, prefix="n"):
             plt.close()
 
 
-stat = get_stat_loop("n_test")
-draw(stat, "n")
+# n_stat = get_stat_loop("n_test")
+# draw(n_stat, "n")
+
+# d_stat = get_stat_loop("d_test")
+# draw(d_stat, "d")
+
+b_stat = get_stat_loop("b_test")
+draw(b_stat, "b")
