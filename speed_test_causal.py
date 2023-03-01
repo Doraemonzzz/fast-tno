@@ -68,8 +68,8 @@ def speed_test(b, n, d):
         )
 
 # n test
-b = 8
-d = 64
+# b = 8
+# d = 64
 # for n in [64, 128, 256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192]:
 #     torch.cuda.empty_cache()
 #     fb = open(f"log/n_test_{n}.log", "w")

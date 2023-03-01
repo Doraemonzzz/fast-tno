@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5
 
 
 def get_model_name(model):
@@ -30,6 +30,7 @@ models = [
     TnoCausalV2().cuda(),
     TnoCausalV3().cuda(),
     TnoCausalV4().cuda(),
+    TnoCausalV5().cuda(),
 ]
 
 
