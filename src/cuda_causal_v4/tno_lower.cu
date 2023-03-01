@@ -1,6 +1,6 @@
 #include<stdio.h>
 #define e 2
-#define c 32
+#define c 16
 
 template<typename F>
 __global__ void lower_kernel(const int b, const int d, const int n, const F* T, const F* x, F* y) {
