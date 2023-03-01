@@ -1,7 +1,7 @@
 #include<stdio.h>
-#define b_ 2
-#define n_ 16
-#define d_ 64
+#define B 2
+#define N 16
+#define D 32
 
 template<typename F>
 __global__ void lower_kernel(const int b, const int d, const int n, const F* T, const F* x, F* y) {
@@ -74,13 +74,13 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
 }
 
 void forward_cuda(int b, int d, int n, float* T, float* x, float* y) {
-    dim3 DimGrid((b + b_ - 1) / b_, (n + n_ - 1) / n_, (d + d_ - 1) / d_);
-    dim3 DimBlock(b_, n_, d_);
+    dim3 DimGrid((b + B - 1) / B, (n + N - 1) / N, (d + D - 1) / D);
+    dim3 DimBlock(B, N, D);
     lower_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, y);
 }
 
 void backward_cuda(int b, int d, int n, float* T, float* x, float* gy, float* gT, float* gx) {
-    dim3 DimGrid((b + b_ - 1) / b_, (n + n_ - 1) / n_, (d + d_ - 1) / d_);
-    dim3 DimBlock(b_, n_, d_);
+    dim3 DimGrid((b + B - 1) / B, (n + N - 1) / N, (d + D - 1) / D);
+    dim3 DimBlock(B, N, D);
     backward_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, gy, gT, gx);
 }
