@@ -1,6 +1,7 @@
 #include<stdio.h>
-
-#define c 32
+#define B 2
+#define N 64
+#define D 8
 
 template<typename F>
 __global__ void lower_kernel(const int b, const int d, const int n, const F* T, const F* x, F* y) {
@@ -12,35 +13,49 @@ __global__ void lower_kernel(const int b, const int d, const int n, const F* T, 
     output:
         y: b, n, d
     **/
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= b * d) {
+    int b_ = blockIdx.x * blockDim.x + threadIdx.x;
+    if (b_ >= b) {
         return;
     }
     int i = blockIdx.y * blockDim.y + threadIdx.y;
     if (i >= n) {
         return;
     }
-    int b_ = idx / d;
-    int d_ = idx % d;
+    int d_ = blockIdx.z * blockDim.z + threadIdx.z;
+    if (d_ >= d) {
+        return;
+    }
     int t_offset = d_;
     int x_offset = b_ * d * n + d_;
-    // __shared__ F ww[1024];
-    __shared__ F T_shared[c][c];
-    T_shared[i % c][d_ % c] = x[x_offset + i * d];
+
+    // shared memory
+    __shared__ F T_shared[N][D];
+    __shared__ F x_shared[B][N][D];
+    T_shared[i % N][d_ % D] = T[t_offset + i * d];
+    x_shared[b_ % B][i % N][d_ % D] = x[x_offset + i * d];
     __syncthreads();
 
-    int i1 = (i / c) * c;
-    int d1 = (d_ / c) * d;
+    int b1 = (b_ / B) * B;
+    int i1 = (i / N) * N;
+    int d1 = (d_ / D) * D;
 
     F s = 0;
     for (int j = 0; j <= i; j++) {
-        if ((i1 <= j && j < i1 + c) && (d1 <= d_ && d_ < d1 + c)) {
-            s += T_shared[j % c][d_ % c] * x[x_offset + j * d];
-            printf("%lf %lf\n", T_shared[j % c][d_ % c], T[t_offset + (i - j) * d])
+        if ((i1 <= i - j && i - j < i1 + N) && (d1 <= d_ && d_ < d1 + D)) {
+            if ((b1 <= b_ && b_ < b1 + B) && (i1 <= j && j < i1 + N)) {
+                s += T_shared[(i - j) % N][d_ % D] * x_shared[b_ % B][j % N][d_ % D];
+            } else {
+                s += T_shared[(i - j) % N][d_ % D] * x[x_offset + j * d];
+            }
         } else {
-            s += T[t_offset + (i - j) * d] * x[x_offset + j * d];
+            if ((b1 <= b_ && b_ < b1 + B) && (i1 <= j && j < i1 + N)) {
+                s += T[t_offset + (i - j) * d] * x_shared[b_ % B][j % N][d_ % D];
+            } else {
+                s += T[t_offset + (i - j) * d] * x[x_offset + j * d];
+            }
         }
     }
+
     y[x_offset + i * d] = s;
 }
 
@@ -56,16 +71,18 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
         gT: b, n, d
         gx: b, n, d
     **/
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= b * d) {
+    int b_ = blockIdx.x * blockDim.x + threadIdx.x;
+    if (b_ >= b) {
         return;
     }
     int i = blockIdx.y * blockDim.y + threadIdx.y;
     if (i >= n) {
         return;
     }
-    int b_ = idx / d;
-    int d_ = idx % d;
+    int d_ = blockIdx.z * blockDim.z + threadIdx.z;
+    if (d_ >= d) {
+        return;
+    }
     int t_offset = d_;
     int x_offset = b_ * d * n + d_;
 
@@ -80,13 +97,13 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
 }
 
 void forward_cuda(int b, int d, int n, float* T, float* x, float* y) {
-    dim3 DimGrid((b * d + c - 1) / c, (n + c - 1) / c);
-    dim3 DimBlock(c, c);
+    dim3 DimGrid((b + B - 1) / B, (n + N - 1) / N, (d + D - 1) / D);
+    dim3 DimBlock(B, N, D);
     lower_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, y);
 }
 
 void backward_cuda(int b, int d, int n, float* T, float* x, float* gy, float* gT, float* gx) {
-    dim3 DimGrid((b * d + c - 1) / c, (n + c - 1) / c);
-    dim3 DimBlock(c, c);
+    dim3 DimGrid((b + B - 1) / B, (n + N - 1) / N, (d + D - 1) / D);
+    dim3 DimBlock(B, N, D);
     backward_kernel<<<DimGrid, DimBlock>>>(b, d, n, T, x, gy, gT, gx);
 }
