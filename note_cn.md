@@ -268,3 +268,10 @@ $$
 - 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
 - 在$b, d, n$维度并行处理；
 
+
+
+### V4
+
+- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- 在$b, d, n$维度并行处理；
+- $b, d, n$分开并行；

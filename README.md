@@ -21,6 +21,10 @@ Although the theoretical complexity is $O(nd\log n )$, it is slower than Attenti
 
 # Speed test
 
+## n vs time
+
+(b = 8, d = 64).
+
 Forward mode:
 
 ![](./image/n_GPU_forward.jpg)
@@ -28,6 +32,34 @@ Forward mode:
 Backward mode:
 
 ![](./image/n_GPU_backward.jpg)
+
+
+
+## d vs time
+
+(b = 8, n = 2048).
+
+Forward mode:
+
+![](./image/d_GPU_forward.jpg)
+
+Backward mode:
+
+![](./image/d_GPU_backward.jpg)
+
+
+
+## b vs time
+
+(d = 512, n = 2048).
+
+Forward mode:
+
+![](./image/b_GPU_forward.jpg)
+
+Backward mode:
+
+![](./image/b_GPU_backward.jpg)
 
 # Todo
 
@@ -41,7 +73,7 @@ Backward mode:
 - [x] Add forward and backward code(causal v2).
 - [x] Add no transpose version(causal v3).
 - [x] Add cpu/gpu speed stat and curve.
-- [ ] Add develop log.
+- [x] Add develop log.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
 - [ ] 
