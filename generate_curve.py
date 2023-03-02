@@ -83,11 +83,11 @@ def draw(stat, prefix="n"):
             plt.close()
 
 
-# n_stat = get_stat_loop("n_test")
-# draw(n_stat, "n")
+n_stat = get_stat_loop("n_test")
+draw(n_stat, "n")
 
 # d_stat = get_stat_loop("d_test")
 # draw(d_stat, "d")
 
-b_stat = get_stat_loop("b_test")
-draw(b_stat, "b")
+# b_stat = get_stat_loop("b_test")
+# draw(b_stat, "b")
