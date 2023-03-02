@@ -284,6 +284,7 @@ $$
 - 在$b, d, n$维度并行处理；
 - $b, d, n$分别分thread；
 - 使用shared memory；
+  - forward mode；
 
 
 

@@ -28,7 +28,7 @@ __global__ void lower_kernel(const int b, const int d, const int n, const F* T, 
     int t_offset = d_;
     int x_offset = b_ * d * n + d_;
 
-    // shared memory
+    // forward
     __shared__ F T_shared[N][D];
     __shared__ F x_shared[B][N][D];
     T_shared[i % N][d_ % D] = T[t_offset + i * d];
