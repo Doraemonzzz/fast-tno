@@ -31,7 +31,6 @@ class TnoMatrix(nn.Module):
         r = torch.cat([zero, neg.flip(1)], dim=-2)
         vals = torch.cat([r, c[:, 1:].flip(1)], dim=-2)
         n = c.shape[-2]
-        shape = n, n
         i, j = torch.ones(n, n).nonzero().T
         t_matrix = vals[:, j - i].reshape(n, n, -1)
 
