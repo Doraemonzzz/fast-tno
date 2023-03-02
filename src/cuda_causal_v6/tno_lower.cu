@@ -30,7 +30,6 @@ __global__ void lower_kernel(const int b, const int d, const int n, const F* T, 
         }
         y[x_offset + i * d] = s;
     }
-
 }
 
 template<typename F>
