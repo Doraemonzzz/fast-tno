@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5, TnoCausalV6
 
 
 def get_model_name(model):
@@ -13,7 +13,7 @@ def get_model_name(model):
 ###### data initialize
 b = 2
 n = 32
-d = 16
+d = 32
 
 t_zero = torch.randn(1, d)
 t_pos = torch.randn(n - 1, d)
@@ -31,6 +31,7 @@ models = [
     TnoCausalV3().cuda(),
     TnoCausalV4().cuda(),
     TnoCausalV5().cuda(),
+    TnoCausalV6().cuda(),
 ]
 
 

@@ -252,21 +252,21 @@ $$
 ### V1
 
 - 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
-- 在$b, d$维度并行处理；
+- $b, d$维度分thread；
 
 
 
 ### V2
 
 - 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
-- 在$b, d, n$维度并行处理；
+- $b, d$维度分thread，$n$维度分thread；
 
 
 
 ### V3
 
 - 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
-- 在$b, d, n$维度并行处理；
+- $b, d$维度分thread，$n$维度分thread；
 
 
 
@@ -274,4 +274,21 @@ $$
 
 - 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
 - 在$b, d, n$维度并行处理；
-- $b, d, n$分开并行；
+- $b, d, n$分别分thread；
+
+
+
+### V5
+
+- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- 在$b, d, n$维度并行处理；
+- $b, d, n$分别分thread；
+- 使用shared memory；
+
+
+
+### V6
+
+- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- 在d, n$维度并行处理；
+- $d, n$分别分thread；
