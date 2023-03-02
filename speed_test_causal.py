@@ -79,22 +79,22 @@ for n in [64, 128, 256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192]:
     speed_test(b, n, d)
     fb.close()
 
-## d test
-b = 8
-n = 2048
-for d in [64, 128, 256, 512, 1024]:
-    torch.cuda.empty_cache()
-    fb = open(f"log/d_test_{d}.log", "w")
-    sys.stdout = fb
-    speed_test(b, n, d)
-    fb.close()
+# ## d test
+# b = 8
+# n = 2048
+# for d in [64, 128, 256, 512, 1024]:
+#     torch.cuda.empty_cache()
+#     fb = open(f"log/d_test_{d}.log", "w")
+#     sys.stdout = fb
+#     speed_test(b, n, d)
+#     fb.close()
     
-## b test
-d = 512
-n = 2048
-for b in [2, 4, 8, 16]:
-    torch.cuda.empty_cache()
-    fb = open(f"log/b_test_{b}.log", "w")
-    sys.stdout = fb
-    speed_test(b, n, d)
-    fb.close()
+# ## b test
+# d = 512
+# n = 2048
+# for b in [2, 4, 8, 16]:
+#     torch.cuda.empty_cache()
+#     fb = open(f"log/b_test_{b}.log", "w")
+#     sys.stdout = fb
+#     speed_test(b, n, d)
+#     fb.close()
