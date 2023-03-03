@@ -64,7 +64,7 @@ class TnoCausalV2(nn.Module):
 
         Args:
             x (Tensor): b, n, d;
-            t (Tensor): b, d;
+            t (Tensor): n, d;
                         t0, t1, ..., t(n-1);
 
         Returns:

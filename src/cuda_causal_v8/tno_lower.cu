@@ -26,9 +26,9 @@ __global__ void lower_kernel(const int b, const int d, const int n, const F* T, 
         F s = 0;
         int x_offset = b_ * d * n + d_ * n;
         for (int j = 0; j <= i; j++) {
-            s += T[t_offset + (i - j) * d] * x[x_offset + j * d];
+            s += T[t_offset + i - j] * x[x_offset + j];
         }
-        y[x_offset + i * d] = s;
+        y[x_offset + i] = s;
     }
 }
 
@@ -44,27 +44,27 @@ __global__ void backward_kernel(const int b, const int d, const int n, const F* 
         gT: b, d, n
         gx: b, d, n
     **/
-    int idx = blockIdx.y * blockDim.y + threadIdx.y;
-    if (idx >= b * d) {
-        return;
-    }
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) {
         return;
     }
-    int b_ = idx / d;
-    int d_ = idx % d;
-    int t_offset = d_ * n;
-    int x_offset = b_ * d * n + d_ * n;
-
-    F s_x = 0;
-    F s_T = 0;
-    for (int j = 0; j < n - i; j++) {
-        s_x += T[t_offset + j] * gy[x_offset + i + j];
-        s_T += x[x_offset + j] * gy[x_offset + i + j];
+    int d_ = blockIdx.y * blockDim.y + threadIdx.y;
+    if (d_ >= d) {
+        return;
     }
-    gx[x_offset + i] = s_x;
-    gT[x_offset + i] = s_T;
+    int t_offset = d_ * n;
+
+    for (int b_ = 0; b_ < b; b_++) {
+        int x_offset = b_ * d * n + d_ * n;
+        F s_x = 0;
+        F s_T = 0;
+        for (int j = 0; j < n - i; j++) {
+            s_x += T[t_offset + j] * gy[x_offset + i + j];
+            s_T += x[x_offset + j] * gy[x_offset + i + j];
+        }
+        gx[x_offset + i] = s_x;
+        gT[x_offset + i] = s_T;
+    }
 }
 
 void forward_cuda(int b, int d, int n, float* T, float* x, float* y) {
