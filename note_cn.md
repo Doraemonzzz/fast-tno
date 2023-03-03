@@ -293,3 +293,11 @@ $$
 - 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
 - 在d, n$维度并行处理；
 - $d, n$分别分thread；
+
+
+
+### V7
+
+- 和V3类似，$n$维度使用thread.x；
+- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- $b, d$维度分thread，$n$维度分thread；

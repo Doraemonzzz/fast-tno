@@ -74,6 +74,7 @@ Backward mode:
 - [x] Add no transpose version(causal v3).
 - [x] Add cpu/gpu speed stat and curve.
 - [x] Add develop log.
+- [x] Add profile.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
 - [ ] 
