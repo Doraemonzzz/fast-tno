@@ -298,6 +298,23 @@ $$
 
 ### V7
 
-- 和V3类似，$n$维度使用thread.x；
-- 维度：$\mathbf T: (n, d), \mathbf x:(b, n, d)$；
+- 和V2类似，$n$维度使用thread.x；
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
 - $b, d$维度分thread，$n$维度分thread；
+
+
+
+### V8
+
+- 和V7类似，$n$维度使用thread.x，$d$使用thread.y；
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
+- $b, d$维度分thread，$n$维度分thread；
+
+
+
+### V9
+
+- 和V8类似，$n$维度使用thread.x，$d$使用thread.y，$b$使用thread.z；
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
+- $b, d, n$分别分thread；
+
