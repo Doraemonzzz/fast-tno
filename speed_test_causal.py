@@ -2,7 +2,7 @@ import torch
 import sys
 from torch.autograd import gradcheck
 
-from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5, TnoCausalV6, TnoCausalV7
+from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5, TnoCausalV6, TnoCausalV7, TnoCausalV8
 
 
 def get_model_name(model):
@@ -31,6 +31,7 @@ def speed_test(b, n, d):
         TnoCausalV5().cuda(),
         TnoCausalV6().cuda(),
         TnoCausalV7().cuda(),
+        TnoCausalV8().cuda(),
     ]
 
     ###### warmup
