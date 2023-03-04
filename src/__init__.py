@@ -7,4 +7,5 @@ from .cuda_causal_v6 import *
 from .cuda_causal_v7 import *
 from .cuda_causal_v8 import *
 from .cuda_causal_v9 import *
+from .cuda_causal_v10 import *
 from .baseline import *
