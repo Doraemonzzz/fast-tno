@@ -35,7 +35,7 @@ __global__ void forward_kernel(
         return;
     }
 
-    // int l = (n + N - 1) / N;
+    int l = (n + N - 1) / N;
     int t_offset = d_ * n;
     int x_offset = b_ * d * n + d_ * n;
 
@@ -43,7 +43,7 @@ __global__ void forward_kernel(
     int d_thread = threadIdx.y;
     int b_thread = threadIdx.z;
 
-    __shared__ F T_shared[D][l][2 * N - 1];
+    __shared__ F T_shared[D][2][2 * N - 1];
     __shared__ F x_shared[B][D][N];
 
     for (int j_block = 0; j_block < l; j_block++) {
