@@ -214,7 +214,7 @@ d_i & =
 t_0 &t_1  & \cdots & t_{n-1} \\
 0 & t_0 & \cdots &t_{n-2} \\
 \vdots & \vdots & \vdots & \vdots \\
-0& 0 & 0 & x_0 
+0& 0 & 0 & t_0 
 \end{matrix}\right]\mathbf c  \\
 e_i & = 
 \sum_{j=0}^{n - 1 -i} t_{j}c_{i+j}

@@ -25,6 +25,9 @@ class TnoCausal(torch.autograd.Function):
         # b, n, d -> b, d, n
         x = x.transpose(2, 1).contiguous()
         ctx.save_for_backward(T, x)
+        # print(T[0])
+        # print(torch.flip(T, dims=(-1,))[0])
+        # ctx.save_for_backward(torch.flip(T, dims=(-1,)), torch.flip(x, dims=(-1,)))
         y = torch.empty(
             (b, d, n), device=x.device, memory_format=torch.contiguous_format
         )
