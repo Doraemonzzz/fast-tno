@@ -5,7 +5,7 @@ from torch.utils.cpp_extension import load
 
 import os
 
-mathdx_dir = os.environ['mathdx_dir']
+# mathdx_dir = os.environ['mathdx_dir']
 
 # from fftconv import fftconv_fwd, fftconv_bwd
 
