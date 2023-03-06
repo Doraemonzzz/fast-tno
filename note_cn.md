@@ -332,9 +332,37 @@ todo。
 
 
 
-### V9
+### V10
 
 - 矩阵乘法的分块形式；
 - $b, d, n$分别分thread；
 - $n$维度使用thread.x，$d$使用thread.y，$b$使用thread.z；
 - 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
+
+
+
+### fftconv
+
+环境变量：
+
+```
+export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64:${CUDA_HOME}/targets
+export mathdx_dir=/data/qinzhen/code/fast-tno/src/fftconv
+```
+
+gcc7
+
+```
+https://gist.github.com/jlblancoc/99521194aba975286c80f93e47966dc5
+```
+
+torch 1.10+, cuda 11.0+
+
+cub默认包含在cuda中，但现在不确定用哪个版本的cuda，所以手动包含一个版本的cub：
+
+```
+curl -LO https://github.com/NVIDIA/cub/archive/refs/tags/1.17.2.tar.gz
+tar xzf 1.17.2.tar.gz
+mv -r cub-1.17.2 .
+```
+

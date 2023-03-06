@@ -3,7 +3,8 @@
 #include <cmath>
 #include <torch/extension.h>
 
-#include <cuda/std/complex>
+// #include <cuda/std/complex>
+#include <complex>
 #include <cuda_fp16.h>
 
 #define CHECK_DEVICE(x) TORCH_CHECK(x.device().type() == torch::kCUDA, #x " must be on CUDA")
@@ -60,11 +61,9 @@ torch::Tensor fftconv_fwd(torch::Tensor u, torch::Tensor filter,
                           ) {
     CHECK_DEVICE(u);
     CHECK_DEVICE(filter);
-    CHECK_DEVICE(D);
 
     TORCH_CHECK(u.stride(-1) == 1);
     TORCH_CHECK(filter.is_contiguous());
-    TORCH_CHECK(D.is_contiguous());
 
     const int batch_size = u.size(0);
     const int H = u.size(1);
@@ -73,8 +72,6 @@ torch::Tensor fftconv_fwd(torch::Tensor u, torch::Tensor filter,
     CHECK_SHAPE(filter, H / head_dim, fft_size / 2 + 1);
 
     TORCH_CHECK(u.dtype() == torch::kFloat16 || u.dtype() == torch::kFloat32 || u.dtype() == torch::kBFloat16);
-    // TODO: check filter.dtype is complex64 (no complex32)
-    TORCH_CHECK(D.dtype() == torch::kFloat32);
 
     if (dropout_mask.has_value()) {
         auto dropout_mask_value = dropout_mask.value();

@@ -3,13 +3,29 @@ import torch.nn as nn
 
 from torch.utils.cpp_extension import load
 
+import os
+
+mathdx_dir = os.environ['mathdx_dir']
+
 # from fftconv import fftconv_fwd, fftconv_bwd
+
+# ninja build does not work unless include_dirs are abs path
+this_dir = os.path.dirname(os.path.abspath(__file__))
+
+# cub_dir = os.environ["CUB_HOME"]
 
 tno_causal_cuda = load(
     name="tno_causal_v12",
     sources=["src/fftconv/fftconv.cpp", "src/fftconv/fftconv_cuda.cu"],
-    extra_include_paths=["/usr/local/cuda-11.2/targets/x86_64-linux/include/cuda/std/detail/libcxx/include",
-                         "/usr/local/cuda-11.2/targets/x86_64-linux/include/thrust/detail/complex"],
+    # extra_include_paths=[f"{mathdx_dir}/mathdx/22.02/include"],
+    extra_include_paths=[os.path.join(this_dir, 'mathdx/22.02/include'),
+                        #  f"{cub_dir}",
+                         os.path.join(this_dir, 'cub-1.17.2')
+                         ],
+    extra_cflags=['-g', '-march=native', '-funroll-loops'],
+    extra_cuda_cflags=['-O3', '--threads', '4', '-lineinfo', '--use_fast_math', '-std=c++17', '-arch=compute_70'],
+    # extra_include_paths=["/usr/local/cuda-11.2/targets/x86_64-linux/include/cuda/std/detail/libcxx/include",
+    #                      "/usr/local/cuda-11.2/targets/x86_64-linux/include/thrust/detail/complex"],
     verbose=True,
 )
 

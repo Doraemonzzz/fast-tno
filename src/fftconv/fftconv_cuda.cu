@@ -3,13 +3,18 @@
 #include <torch/torch.h>
 
 #include <stdio.h>
-#include <cuda/std/complex>
+// #include <cuda/std/complex>
+#include <complex>
 
 #include <cufftdx.hpp>
 
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/block/block_reduce.cuh>
+// #include "cub-1.17.2/cub/block/block_load.cuh"
+// #include "cub-1.17.2/cub/block/block_store.cuh"
+// #include "cub-1.17.2/cub/block/block_reduce.cuh"
+
 
 #include <c10/cuda/CUDAException.h>  // For C10_CUDA_KERNEL_LAUNCH_CHECK
 
