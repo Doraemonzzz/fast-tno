@@ -86,7 +86,7 @@ $$
 
 $$
 \mathbf a\triangleq \frac{\partial \mathbf o}{\partial \mathbf t}
-&=\left[\begin{matrix}
+=\left[\begin{matrix}
 0 & \cdots &  0 & x_0 & x_1 & \cdots &x_{n-1} \\
 0 & 0& x_0 & x_1 & \cdots &x_{n-1} & 0\\
 \vdots & \vdots & \vdots  & \vdots & \vdots  &\vdots  & \vdots  \\
@@ -330,3 +330,11 @@ todo。
 - 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
 - $b, d, n$分别分thread；
 
+
+
+### V9
+
+- 矩阵乘法的分块形式；
+- $b, d, n$分别分thread；
+- $n$维度使用thread.x，$d$使用thread.y，$b$使用thread.z；
+- 维度：$\mathbf T: (d, n), \mathbf x:(b, d,n)$；
