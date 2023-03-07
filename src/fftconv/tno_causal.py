@@ -11,6 +11,7 @@ import os
 
 # ninja build does not work unless include_dirs are abs path
 this_dir = os.path.dirname(os.path.abspath(__file__))
+cuda_dir = os.environ["CUDA_HOME"]
 
 # cub_dir = os.environ["CUB_HOME"]
 
@@ -19,8 +20,9 @@ tno_causal_cuda = load(
     sources=["src/fftconv/fftconv.cpp", "src/fftconv/fftconv_cuda.cu"],
     # extra_include_paths=[f"{mathdx_dir}/mathdx/22.02/include"],
     extra_include_paths=[os.path.join(this_dir, 'mathdx/22.02/include'),
+                         os.path.join(cuda_dir, "include")
                         #  f"{cub_dir}",
-                         os.path.join(this_dir, 'cub-1.17.2')
+                        #  os.path.join(this_dir, 'cub-1.17.2')
                          ],
     extra_cflags=['-g', '-march=native', '-funroll-loops'],
     extra_cuda_cflags=['-O3', '--threads', '4', '-lineinfo', '--use_fast_math', '-std=c++17', '-arch=compute_70'],

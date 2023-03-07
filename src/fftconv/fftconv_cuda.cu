@@ -3,8 +3,8 @@
 #include <torch/torch.h>
 
 #include <stdio.h>
-// #include <cuda/std/complex>
-#include <complex>
+#include <cuda/std/complex>
+// #include <complex>
 
 #include <cufftdx.hpp>
 
