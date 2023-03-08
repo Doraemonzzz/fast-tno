@@ -95,6 +95,7 @@ cc_flag = []
 # cc_flag.append("arch=compute_70,code=sm_70")
 cc_flag.append("-gencode")
 cc_flag.append("arch=compute_80,code=sm_80")
+cuda_dir = os.environ["CUDA_HOME"]
 
 ext_modules.append(
     CUDAExtension(
@@ -107,7 +108,9 @@ ext_modules.append(
         # extra_compile_args={'cxx': ['-O3'],
         #                     'nvcc': append_nvcc_threads(['-O3', '-lineinfo', '--use_fast_math', '-std=c++17'] + cc_flag)
                             },
-        include_dirs=[os.path.join(this_dir, 'mathdx/22.02/include')]
+        include_dirs=[os.path.join(this_dir, 'mathdx/22.02/include'),
+                      os.path.join(cuda_dir, "targets/x86_64-linux/include")
+                      ]
     )
 )
 

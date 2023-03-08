@@ -5,16 +5,13 @@
 #include <stdio.h>
 #include <cuda/std/complex>
 // #include <complex>
+// #include <c10/util/complex.h>
 
 #include <cufftdx.hpp>
 
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/block/block_reduce.cuh>
-// #include "cub-1.17.2/cub/block/block_load.cuh"
-// #include "cub-1.17.2/cub/block/block_store.cuh"
-// #include "cub-1.17.2/cub/block/block_reduce.cuh"
-
 
 #include <c10/cuda/CUDAException.h>  // For C10_CUDA_KERNEL_LAUNCH_CHECK
 
@@ -344,7 +341,7 @@ __global__ void fftconv_fwd_kernel(const input_t *__restrict__ inputData,
                                    const c10::complex<float> *__restrict__ filterData,
                                    const input_t *__restrict__ inputMulVData,
                                    const input_t *__restrict__ inputMulQData,
-                                //    const float *__restrict__ DData,
+                                   const float *__restrict__ DData,
                                    const float *__restrict__ dropmaskData,
                                    output_t *__restrict__ outputData,
                                    int batch_size,
@@ -468,11 +465,15 @@ __global__ void fftconv_fwd_kernel(const input_t *__restrict__ inputData,
 
         float out_data[EPT] {};
 
-        // out = y + u * D.unsqueeze(-1)
-        // #pragma unroll
+        #pragma unroll
+        for ( int i = 0; i < EPT; i++ ) {
+            out_data[i] = reinterpret_cast<float (&)[EPT * 2]>(thread_data)[i];
+        }
         // for ( int i = 0; i < EPT; i++ ) {
         //     out_data[i] = reinterpret_cast<float (&)[EPT * 2]>(thread_data)[i] + u_og_data[i] * D_val;
         // }
+        //  out = y + u * D -> out = y
+
 
         // GELU_OUTPUT and dropout
         // https://github.com/pytorch/pytorch/blob/dc169d53aa266560750ea25ee0cf31c7e614550d/aten/src/ATen/native/cuda/Activation.cu#L395
@@ -522,10 +523,258 @@ __global__ void fftconv_fwd_kernel(const input_t *__restrict__ inputData,
     // TODO: what if signal_size is odd?
 }
 
+
+// template<bool QV, int HEADDIM, typename FFT, typename IFFT, typename input_t, typename output_t=input_t, bool GELU_INPUT=false, bool GELU_OUTPUT=true, bool GELU_Q=false>
+// __launch_bounds__( FFT::max_threads_per_block )
+// __global__ void fftconv_fwd_kernelfp16(const input_t *__restrict__ inputData,
+//                                    const c10::complex<float> *__restrict__ filterData,
+//                                    const input_t *__restrict__ inputMulVData,
+//                                    const input_t *__restrict__ inputMulQData,
+//                                    const float *__restrict__ DData,
+//                                    const float *__restrict__ dropmaskData,
+//                                    output_t *__restrict__ outputData,
+//                                    int batch_size,
+//                                    int H,
+//                                    int signal_size,
+//                                    bool output_hbl_layout) {
+
+//     using complex_t = typename cufftdx::detail::complex<__half2>;
+//     using cfloat_t = typename c10::complex<float>;
+//     constexpr int N = cufftdx::size_of<FFT>::value;
+//     constexpr int EPT = FFT::elements_per_thread;
+//     static_assert(FFT::storage_size == EPT);
+//     static_assert(IFFT::storage_size == EPT);
+
+//     using BlockLoad_input = cub::BlockLoad<cfloat_t, FFT::block_dim.x, EPT / 2, cub::BLOCK_LOAD_STRIPED>;
+//     using BlockLoad_filter = cub::BlockLoad<cfloat_t, FFT::block_dim.x, EPT, cub::BLOCK_LOAD_STRIPED>;
+//     using BlockStore_output = cub::BlockStore<c10::complex<output_t>, FFT::block_dim.x, EPT / 2, cub::BLOCK_STORE_STRIPED>;
+
+//     extern __shared__ cfloat_t shared_mem[];
+
+//     float result_data[2][EPT] = { 0 };
+
+//     cfloat_t filter_data[EPT];
+//     unsigned int filter_id = blockIdx.y;
+//     BlockLoad_filter().Load(filterData + filter_id * (N + 1), filter_data);
+//     if (threadIdx.x == 0) {
+//         filter_data[0].imag_ = *(reinterpret_cast<const float *>(filterData + filter_id * (N + 1) + N));
+//     }
+//     #pragma unroll
+//     for ( int i = 0; i < EPT; i++ ) { filter_data[i] /= 2 * N; }
+
+//     // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0)) {
+//     //     for (int i = 0; i < FFT::storage_size / 2; i++) {
+//     //         printf("%.4f+%.4fi, ", filter_data[i].real_, filter_data[i].imag_);
+//     //     }
+//     //     printf("\n");
+//     // }
+
+//     float D_val = DData[filter_id];
+//     unsigned int dropmask_id = blockIdx.x * H + blockIdx.y;
+//     float dropmask_val = dropmaskData == nullptr ? 1.f : dropmaskData[dropmask_id];
+
+//     // ID of FFT in CUDA block, in range [0; FFT::ffts_per_block)
+//     // Used for inputMulVData only
+//     unsigned int global_fft_id = blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + blockIdx.z;
+
+//     // do not pragma unroll this!!
+//     for (int head_i = 0; head_i < HEADDIM; head_i++) {
+//         // Local array and copy data into it
+//         float u_og_data[2][EPT];
+//         float v_data[2][EPT];
+//         complex_t thread_data[EPT];
+
+//         // Id for inputData and inputMulQData
+//         unsigned int head_fft_id = blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + head_i;
+
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputData + head_fft_id * signal_size),
+//                             reinterpret_cast<cfloat_t (&)[EPT / 2]>(u_og_data[0]),
+//                             signal_size / 2, cfloat_t(0.f));
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputData + head_fft_id * signal_size + H * signal_size),
+//                             reinterpret_cast<cfloat_t (&)[EPT / 2]>(u_og_data[1]),
+//                             signal_size / 2, cfloat_t(0.f));
+//         // TODO: what if signal_size is odd
+//         if (GELU_INPUT) {
+//             gelu(u_og_data[0], u_og_data[0]);
+//             gelu(u_og_data[1], u_og_data[1]);
+//         }
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("u_og_data[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("u_og_data[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulVData + global_fft_id * signal_size),
+//                         reinterpret_cast<cfloat_t (&)[EPT / 2]>(v_data[0]),
+//                         signal_size / 2, cfloat_t(0.f));
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulVData + global_fft_id * signal_size + H * signal_size),
+//                         reinterpret_cast<cfloat_t (&)[EPT / 2]>(v_data[1]),
+//                         signal_size / 2, cfloat_t(0.f));
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             u_og_data[0][i] = u_og_data[0][i] * v_data[0][i];
+//             u_og_data[1][i] = u_og_data[1][i] * v_data[1][i];
+//         }
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("u_og_data[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("u_og_data[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             thread_data[i] = i < EPT / 2 ? complex_t {
+//                 __float22half2_rn({u_og_data[0][i * 2], u_og_data[1][i * 2]}),
+//                 __float22half2_rn({u_og_data[0][i * 2 + 1], u_og_data[1][i * 2 + 1]})
+//             } : complex_t { __float22half2_rn({0.f, 0.f}), __float22half2_rn({0.f, 0.f}) };
+//         }
+
+//         if (head_i > 0) { __syncthreads(); }
+//         // Execute FFT
+//         rfftfp16<FFT>(thread_data, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     cfloat_t thread_floats [2];
+//         //     printf("fft(u)[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         read_rrii(thread_data[i], thread_floats);
+//         //         printf("%.4f+%.4fi, ", thread_floats[0].real_, thread_floats[0].imag_);
+//         //     }
+//         //     printf("\n");
+//         //     printf("fft(u)[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         read_rrii(thread_data[i], thread_floats);
+//         //         printf("%.4f+%.4fi, ", thread_floats[1].real_, thread_floats[1].imag_);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         // here, do a pointwise mul converting from rr fp16 to fp32
+//         cfloat_t thread_floats [2];
+//         cfloat_t res [2];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             read_rrii(thread_data[i], thread_floats);
+//             for ( int j = 0; j < 2; j++ ) {
+//                 res[j] = (threadIdx.x == 0) && (i == 0) ?
+//                 pointwise_mul(thread_floats[j], filter_data[i]) : thread_floats[j] * filter_data[i];
+//             }
+//             thread_data[i] = write_rrii(res);
+//             // thread_data[i] = (threadIdx.x == 0) && (i == 0) ?
+//             //     pointwise_mul(thread_data[i], filter_data[i]) : thread_data[i] * filter_data[i];
+//         }
+
+//         // Execute FFT
+//         __syncthreads();
+//         irfftfp16<IFFT>(thread_data, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+
+//         float out_data[2][EPT] {};
+
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             out_data[0][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(thread_data)[i].x) + u_og_data[0][i] * D_val;
+//             out_data[1][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(thread_data)[i].y) + u_og_data[1][i] * D_val;
+//         }
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("out[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", out_data[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("out[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", out_data[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         // GELU and dropout
+//         // https://github.com/pytorch/pytorch/blob/dc169d53aa266560750ea25ee0cf31c7e614550d/aten/src/ATen/native/cuda/Activation.cu#L395
+
+//         if (GELU_OUTPUT) {
+//             gelu(out_data[0], out_data[0]);
+//             gelu(out_data[1], out_data[1]);
+//         }
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             out_data[0][i] = out_data[0][i] * dropmask_val;
+//             out_data[1][i] = out_data[1][i] * dropmask_val;
+//         }
+
+//         float q_data[2][EPT];
+
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulQData + head_fft_id * signal_size),
+//                         reinterpret_cast<cfloat_t (&)[EPT / 2]>(q_data[0]),
+//                         signal_size / 2, cfloat_t(0.f));
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulQData + head_fft_id * signal_size + H * signal_size),
+//                         reinterpret_cast<cfloat_t (&)[EPT / 2]>(q_data[1]),
+//                         signal_size / 2, cfloat_t(0.f));
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("q[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", q_data[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("q[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", q_data[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             out_data[0][i] = q_data[0][i] * out_data[0][i];
+//             out_data[1][i] = q_data[1][i] * out_data[1][i];
+//         }
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             result_data[0][i] += out_data[0][i];
+//             result_data[1][i] += out_data[1][i];
+//         }
+//     }
+
+//     // Save results
+//     c10::complex<output_t> write_data[2][EPT / 2];
+//     #pragma unroll
+//     for (int i = 0; i < EPT / 2; ++i) {
+//         write_data[0][i] = c10::complex(output_t(result_data[0][i * 2]), output_t(result_data[0][i * 2 + 1]));
+//         write_data[1][i] = c10::complex(output_t(result_data[1][i * 2]), output_t(result_data[1][i * 2 + 1]));
+//     }
+
+//     unsigned int output_fft_id = !output_hbl_layout ? blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + blockIdx.z : blockIdx.x * FFT::ffts_per_block + (blockIdx.y * HEADDIM + blockIdx.z) * batch_size;
+//     BlockStore_output().Store(reinterpret_cast<c10::complex<output_t> *>(outputData + output_fft_id * signal_size),
+//                               write_data[0], signal_size / 2);
+//     BlockStore_output().Store(reinterpret_cast<c10::complex<output_t> *>(outputData + output_fft_id * signal_size + (!output_hbl_layout ? H * signal_size : signal_size)),
+//                               write_data[1], signal_size / 2);
+//     // TODO: what if signal_size is odd?
+// }
+
 template <bool GELU_OUTPUT, uint FFT_SIZE, uint EPT, typename input_t, typename output_t=input_t>
 void fftconv_fwd_cuda(const input_t *u, const c10::complex<float> *filter,
                       const input_t *v, int head_dim, const input_t *q,
-                      const float *dropout_mask, output_t *out,
+                      const float *D, const float *dropout_mask, output_t *out,
                       bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
                       size_t batch_stride, size_t H_stride, bool output_hbl_layout, bool fftfp16) {
 #if defined(__CUDA_ARCH__)
@@ -567,7 +816,7 @@ void fftconv_fwd_cuda(const input_t *u, const c10::complex<float> *filter,
                 CUDA_RT_CALL( cudaFuncSetAttribute(kernel,
                                                     cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                     shared_memory_size ));
-                kernel<<<block, FFT::block_dim, shared_memory_size>>>(u, filter, v, q, dropout_mask, out, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
+                kernel<<<block, FFT::block_dim, shared_memory_size>>>(u, filter, v, q, D, dropout_mask, out, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
             });
             break;
         }
@@ -631,7 +880,7 @@ void fftconv_fwd_cuda(const input_t *u, const c10::complex<float> *filter,
                 CUDA_RT_CALL( cudaFuncSetAttribute(kernel,
                                                     cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                     shared_memory_size ));
-                kernel<<<block, FFT::block_dim, shared_memory_size>>>(u, filter, v, q, dropout_mask, out, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
+                kernel<<<block, FFT::block_dim, shared_memory_size>>>(u, filter, v, q, D, dropout_mask, out, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
             }
             break;
         }
@@ -644,7 +893,7 @@ void fftconv_fwd_cuda(const input_t *u, const c10::complex<float> *filter,
 template <typename input_t, typename output_t=input_t>
 void fftconv_fwd_cuda_dispatch(const input_t *u, const c10::complex<float> *filter,
                                const input_t *v, int head_dim, const input_t *q,
-                               const float *dropout_mask, output_t *out,
+                               const float *D, const float *dropout_mask, output_t *out,
                                bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
                                size_t batch_stride, size_t H_stride, int fft_size,
                                bool output_hbl_layout, bool fftfp16) {
@@ -652,47 +901,47 @@ void fftconv_fwd_cuda_dispatch(const input_t *u, const c10::complex<float> *filt
         switch(fft_size) {
             case 16:
                 fftconv_fwd_cuda<GELU_OUTPUT, 8, 4, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 32:
                 fftconv_fwd_cuda<GELU_OUTPUT, 16, 4, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 64:
                 fftconv_fwd_cuda<GELU_OUTPUT, 32, 4, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 128:
                 fftconv_fwd_cuda<GELU_OUTPUT, 64, 4, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 256:
                 fftconv_fwd_cuda<GELU_OUTPUT, 128, 4, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 512:
                 fftconv_fwd_cuda<GELU_OUTPUT, 256, 8, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 1024:
                 fftconv_fwd_cuda<GELU_OUTPUT, 512, 16, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 2048:
                 fftconv_fwd_cuda<GELU_OUTPUT, 1024, 16, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 4096:
                 fftconv_fwd_cuda<GELU_OUTPUT, 2048, 8, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 8192:
                 fftconv_fwd_cuda<GELU_OUTPUT, 4096, 8, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 16384:
                 fftconv_fwd_cuda<GELU_OUTPUT, 8192, 8, input_t, output_t>(
-                    u, filter, v, head_dim, q, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
+                    u, filter, v, head_dim, q, D, dropout_mask, out, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             default:
                 AT_ERROR("fftconv forward not implemented for this fft_size");
@@ -707,11 +956,11 @@ __global__ void fftconv_bwd_kernel(const output_t *__restrict__ doutData,
                                    const c10::complex<float> *__restrict__ filterData,
                                    const input_t *__restrict__ inputMulVData,
                                    const input_t *__restrict__ inputMulQData,
-                                //    const float *__restrict__ DData,
+                                   const float *__restrict__ DData,
                                    const float *__restrict__ dropmaskData,
                                    input_t *__restrict__ duData,
                                    c10::complex<float> *__restrict__ dfilterData,
-                                //    float *__restrict__ dDData,
+                                   float *__restrict__ dDData,
                                    float *__restrict__ dvData,
                                    input_t *__restrict__ dqData,
                                    int batch_size,
@@ -739,7 +988,7 @@ __global__ void fftconv_bwd_kernel(const output_t *__restrict__ doutData,
     float du_data[EPT] = { 0 };
     float dq_data[EPT] = { 0 };
     cfloat_t dfilter_data[EPT] = { 0 };
-    float dD_val = 0.f;
+    // float dD_val = 0.f;
                                     
     // #pragma unroll
     // for ( int i = 0; i < EPT; i++ ) {
@@ -856,11 +1105,14 @@ __global__ void fftconv_bwd_kernel(const output_t *__restrict__ doutData,
 
         float out_data[EPT] {};
 
-        // out = y + u * D.unsqueeze(-1)
-        // #pragma unroll
+        #pragma unroll
+        for ( int i = 0; i < EPT; i++ ) {
+            out_data[i] = reinterpret_cast<float (&)[EPT * 2]>(thread_data)[i];
+        }
         // for ( int i = 0; i < EPT; i++ ) {
         //     out_data[i] = reinterpret_cast<float (&)[EPT * 2]>(thread_data)[i] + k_data[i] * D_val;
         // }
+
 
         unsigned int output_fft_id = !output_hbl_layout ? blockIdx.x * H + blockIdx.y * HEADDIM + head_i : blockIdx.x + (blockIdx.y * HEADDIM + head_i) * batch_size;
         BlockLoad_dout().Load(reinterpret_cast<const c10::complex<output_t> *>(doutData + output_fft_id * signal_size),
@@ -934,8 +1186,11 @@ __global__ void fftconv_bwd_kernel(const output_t *__restrict__ doutData,
         float du_data_local[EPT];
         #pragma unroll
         for ( int i = 0; i < EPT; i++ ) {
-            du_data_local[i] = reinterpret_cast<float (&)[EPT * 2]>(grad_data_c)[i] + grad_data[i] * D_val;
+            du_data_local[i] = reinterpret_cast<float (&)[EPT * 2]>(grad_data_c)[i];
         }
+        // for ( int i = 0; i < EPT; i++ ) {
+        //     du_data_local[i] = reinterpret_cast<float (&)[EPT * 2]>(grad_data_c)[i] + grad_data[i] * D_val;
+        // }
 
         float dv_data[EPT];
         // compute dv, and update du
@@ -1024,13 +1279,441 @@ __global__ void fftconv_bwd_kernel(const output_t *__restrict__ doutData,
     }
 }
 
+// template<bool QV, int HEADDIM, typename FFT, typename IFFT, typename input_t, typename output_t=input_t, bool GELU_INPUT=false, bool GELU_OUTPUT=true, bool GELU_Q=false>
+// __launch_bounds__( FFT::max_threads_per_block )
+// __global__ void fftconv_bwd_kernelfp16(const output_t *__restrict__ doutData,
+//                                    const input_t *__restrict__ inputData,
+//                                    const c10::complex<float> *__restrict__ filterData,
+//                                    const input_t *__restrict__ inputMulVData,
+//                                    const input_t *__restrict__ inputMulQData,
+//                                    const float *__restrict__ DData,
+//                                    const float *__restrict__ dropmaskData,
+//                                    input_t *__restrict__ duData,
+//                                    c10::complex<float> *__restrict__ dfilterData,
+//                                    float *__restrict__ dDData,
+//                                    float *__restrict__ dvData,
+//                                    input_t *__restrict__ dqData,
+//                                    int batch_size,
+//                                    int H,
+//                                    int signal_size,
+//                                    bool output_hbl_layout) {
+
+//     using complex_t = typename cufftdx::detail::complex<__half2>;
+//     using cfloat_t = typename c10::complex<float>;
+//     constexpr int N = cufftdx::size_of<FFT>::value;
+//     constexpr int EPT = FFT::elements_per_thread;
+//     static_assert(FFT::storage_size == EPT);
+//     static_assert(IFFT::storage_size == EPT);
+
+//     using BlockLoad_input = cub::BlockLoad<cfloat_t, FFT::block_dim.x, EPT / 2, cub::BLOCK_LOAD_STRIPED>;
+//     using BlockLoad_filter = cub::BlockLoad<cfloat_t, FFT::block_dim.x, EPT, cub::BLOCK_LOAD_STRIPED>;
+//     using BlockLoad_dout = cub::BlockLoad<cfloat_t, FFT::block_dim.x, EPT / 2, cub::BLOCK_LOAD_STRIPED>;
+//     using BlockStore_dinput = cub::BlockStore<c10::complex<input_t>, FFT::block_dim.x, EPT / 2, cub::BLOCK_STORE_STRIPED>;
+//     using BlockStore_dv = cub::BlockStore<cfloat_t, FFT::block_dim.x, EPT / 2, cub::BLOCK_STORE_STRIPED>;
+//     using BlockStore_dfilter = cub::BlockStore<cfloat_t, FFT::block_dim.x, EPT, cub::BLOCK_STORE_STRIPED>;
+
+//     extern __shared__ cfloat_t shared_mem[];
+
+//     float du_data[2][EPT] = { 0 };
+//     float dq_data[2][EPT] = { 0 };
+//     cfloat_t dfilter_data[2][EPT] = { 0 };
+//     float dD_val [2] = { 0.f, 0.f };
+
+//     // Local array and copy data into it
+//     float u_og_data_before_gelu[2][EPT];
+//     float u_og_data[2][EPT];
+//     float q_data[2][EPT];
+
+//     // ID of FFT in CUDA block, in range [0; FFT::ffts_per_block)
+//     unsigned int global_fft_id = blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + blockIdx.z;
+
+//     BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputData + global_fft_id * signal_size),
+//                            reinterpret_cast<cfloat_t (&)[EPT / 2]>(u_og_data_before_gelu[0]),
+//                            signal_size / 2, cfloat_t(0.f));
+//     BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputData + global_fft_id * signal_size + H * signal_size),
+//                            reinterpret_cast<cfloat_t (&)[EPT / 2]>(u_og_data_before_gelu[1]),
+//                            signal_size / 2, cfloat_t(0.f));
+//     // TODO: what if signal_size is odd
+//     if (GELU_INPUT) {
+//         gelu(u_og_data[0], u_og_data_before_gelu[0]);
+//         gelu(u_og_data[1], u_og_data_before_gelu[1]);
+//     } else {
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             u_og_data[0][i] = u_og_data_before_gelu[0][i];
+//             u_og_data[1][i] = u_og_data_before_gelu[1][i];
+//         }
+//     }
+
+//     cfloat_t filter_data[EPT];
+
+//     unsigned int filter_id = blockIdx.y;
+//     BlockLoad_filter().Load(filterData + filter_id * (N + 1), filter_data);
+//     if (threadIdx.x == 0) {
+//         filter_data[0].imag_ = *(reinterpret_cast<const float *>(filterData + filter_id * (N + 1) + N));
+//     }
+//     #pragma unroll
+//     for ( int i = 0; i < EPT; i++ ) { filter_data[i] /= 2 * N; }
+
+//     // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0)) {
+//     //     for (int i = 0; i < FFT::storage_size / 2; i++) {
+//     //         printf("%.4f+%.4fi, ", filter_data[i].real_, filter_data[i].imag_);
+//     //     }
+//     //     printf("\n");
+//     // }
+
+//     float D_val = DData[filter_id];
+//     unsigned int dropmask_id = blockIdx.x * H + blockIdx.y;
+//     float dropmask_val = dropmaskData == nullptr ? 1.f : dropmaskData[dropmask_id];
+
+//     if (QV) {
+//         // Will need to change this if head_dim is not 1
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulQData + global_fft_id * signal_size),
+//                                reinterpret_cast<cfloat_t (&)[EPT / 2]>(q_data[0]),
+//                                signal_size / 2, cfloat_t(0.f));
+//         BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulQData + global_fft_id * signal_size + H * signal_size),
+//                                reinterpret_cast<cfloat_t (&)[EPT / 2]>(q_data[1]),
+//                                signal_size / 2, cfloat_t(0.f));
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0)) {
+//         //     printf("q_data: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", q_data[i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+//     }
+
+//     // do not pragma unroll this!!
+//     for (int head_i = 0; head_i < HEADDIM; head_i++) {
+//         float k_data[2][EPT];
+//         float v_data[2][EPT];
+//         complex_t thread_data[EPT];
+//         float grad_data[2][EPT];
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             k_data[0][i] = u_og_data[0][i];
+//             k_data[1][i] = u_og_data[1][i];
+//         }
+
+//         unsigned int head_fft_id = blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + head_i;
+
+//         if (QV) {
+//             BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulVData + head_fft_id * signal_size),
+//                                    reinterpret_cast<cfloat_t (&)[EPT / 2]>(v_data[0]),
+//                                    signal_size / 2, cfloat_t(0.f));
+//             BlockLoad_input().Load(reinterpret_cast<const c10::complex<input_t> *>(inputMulVData + head_fft_id * signal_size + H * signal_size),
+//                                    reinterpret_cast<cfloat_t (&)[EPT / 2]>(v_data[1]),
+//                                    signal_size / 2, cfloat_t(0.f));
+
+//             // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0)) {
+//             //     printf("v_data: ");
+//             //     for (int i = 0; i < EPT; i++) {
+//             //         printf("%.4f, ", v_data[i]);
+//             //     }
+//             //     printf("\n");
+//             // }
+
+//             #pragma unroll
+//             for (int i = 0; i < EPT; ++i) {
+//                 k_data[0][i] *= v_data[0][i];
+//                 k_data[1][i] *= v_data[1][i];
+//             }
+//         }
+
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             thread_data[i] = i < EPT / 2 ? complex_t {
+//                 __float22half2_rn({k_data[0][i * 2], k_data[1][i * 2]}),
+//                 __float22half2_rn({k_data[0][i * 2 + 1], k_data[1][i * 2 + 1]})
+//             } : complex_t { __float22half2_rn({0.f, 0.f}), __float22half2_rn({0.f, 0.f}) };
+//         }
+
+//         if (head_i > 0) { __syncthreads(); }
+//         // Execute FFT
+//         rfftfp16<FFT>(thread_data, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+//         cfloat_t u_f[2][EPT];
+//         cfloat_t thread_floats[2];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             read_rrii(thread_data[i], thread_floats);
+//             u_f[0][i] = thread_floats[0];
+//             u_f[1][i] = thread_floats[1];
+//         }
+
+//         cfloat_t res [2];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             read_rrii(thread_data[i], thread_floats);
+//             for ( int j = 0; j < 2; j++ ) {
+//                 res[j] = (threadIdx.x == 0) && (i == 0) ?
+//                 pointwise_mul(thread_floats[j], filter_data[i]) : thread_floats[j] * filter_data[i];
+//             }
+//             thread_data[i] = write_rrii(res);
+//             // thread_data[i] = (threadIdx.x == 0) && (i == 0) ?
+//             //     pointwise_mul(thread_data[i], filter_data[i]) : thread_data[i] * filter_data[i];
+//         }
+
+//         // Execute FFT
+//         __syncthreads();
+//         irfftfp16<IFFT>(thread_data, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+
+//         float out_data[2][EPT] {};
+
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             out_data[0][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(thread_data)[i].x) + k_data[0][i] * D_val;
+//             out_data[1][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(thread_data)[i].y) + k_data[1][i] * D_val;
+//         }
+
+//         unsigned int output_fft_id = !output_hbl_layout ? blockIdx.x * H * FFT::ffts_per_block + blockIdx.y * HEADDIM + head_i : blockIdx.x * FFT::ffts_per_block + (blockIdx.y * HEADDIM + head_i) * batch_size;
+//         BlockLoad_dout().Load(reinterpret_cast<const c10::complex<output_t> *>(doutData + output_fft_id * signal_size),
+//                               reinterpret_cast<cfloat_t (&)[EPT / 2]>(grad_data[0]),
+//                               signal_size / 2, cfloat_t(0.f));
+//         BlockLoad_dout().Load(reinterpret_cast<const c10::complex<output_t> *>(doutData + output_fft_id * signal_size + (!output_hbl_layout ? H * signal_size : signal_size)),
+//                               reinterpret_cast<cfloat_t (&)[EPT / 2]>(grad_data[1]),
+//                               signal_size / 2, cfloat_t(0.f));
+
+//         float out_data_before_gelu[2][EPT];
+//         #pragma unroll
+//         for (int i = 0; i < EPT; ++i) {
+//             out_data_before_gelu[0][i] = out_data[0][i];
+//             out_data_before_gelu[1][i] = out_data[1][i];
+//         };
+//         if (GELU_OUTPUT) {
+//             gelu(out_data[0], out_data[0]);
+//             gelu(out_data[1], out_data[1]);
+//         }
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             out_data[0][i] *= dropmask_val;
+//             out_data[1][i] *= dropmask_val;
+//         }
+
+//         // dQ
+//         if (QV) {
+//             #pragma unroll
+//             for (int i = 0; i < EPT; ++i) {
+//                 for (int j = 0; j < 2; ++j) {
+//                     if (GELU_Q) {
+//                         constexpr float kBeta = M_2_SQRTPI * M_SQRT1_2 * 0.5;
+//                         constexpr float kAlpha = M_SQRT1_2;
+//                         const float cdf = 0.5 * (1 + erff(q_data[j][i] * kAlpha));
+//                         const float pdf = expf(-0.5 * q_data[j][i] * q_data[j][i]) * kBeta;
+//                         dq_data[j][i] += (cdf + q_data[j][i] * pdf) * grad_data[j][i] * out_data[j][i];
+//                         grad_data[j][i] *= q_data[j][i] * cdf;
+//                     } else {
+//                         dq_data[j][i] += grad_data[j][i] * out_data[j][i];
+//                         grad_data[j][i] *= q_data[j][i];
+//                     }
+//                 }
+//             }
+//         }
+
+//         // dGELU and dropout
+//         // https://github.com/pytorch/pytorch/blob/dc169d53aa266560750ea25ee0cf31c7e614550d/aten/src/ATen/native/cuda/Activation.cu#L418
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; ++i) {
+//             grad_data[0][i] *= dropmask_val;
+//             grad_data[1][i] *= dropmask_val;
+//         }
+//         if (GELU_OUTPUT) {
+//             dgelu(grad_data[0], grad_data[0], out_data_before_gelu[0]);
+//             dgelu(grad_data[1], grad_data[1], out_data_before_gelu[1]);
+//         }
+
+//         // CHANGE THIS!!!
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             dD_val[0] += grad_data[0][i] * k_data[0][i];
+//             dD_val[1] += grad_data[1][i] * k_data[1][i];
+//         }
+
+//         complex_t grad_data_c[EPT];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             // grad_data_c[i] = i < EPT / 2 ? cfloat_t(grad_data[i * 2], grad_data[i * 2 + 1]) : cfloat_t(0.f);
+//             grad_data_c[i] = i < EPT / 2 ? complex_t {
+//                 __float22half2_rn({grad_data[0][i * 2], grad_data[1][i * 2]}),
+//                 __float22half2_rn({grad_data[0][i * 2 + 1], grad_data[1][i * 2 + 1]})
+//             } : complex_t { __float22half2_rn({0.f, 0.f}), __float22half2_rn({0.f, 0.f}) };
+//         }
+
+//         __syncthreads();
+//         rfftfp16<FFT>(grad_data_c, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+//         cfloat_t grad_floats [2];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             read_rrii(grad_data_c[i], grad_floats);
+//             for ( int j = 0; j < 2; j++ ) {
+//                 dfilter_data[j][i] += ((threadIdx.x == 0) && (i == 0) ?
+//                     pointwise_mul(grad_floats[j], u_f[j][i]) : grad_floats[j] * std::conj(u_f[j][i])) / (2 * N);
+//             }
+//             // dfilter_data[i] += ((threadIdx.x == 0) && (i == 0) ?
+//             //                 pointwise_mul(grad_data_c[i], u_f[i]) : grad_data_c[i] * std::conj(u_f[i])) / (2 * N);
+//         }
+
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             read_rrii(grad_data_c[i], grad_floats);
+//             for ( int j = 0; j < 2; j++ ) {
+//                 res[j] = (threadIdx.x == 0) && (i == 0) ?
+//                 pointwise_mul(grad_floats[j], filter_data[i]) : grad_floats[j] * std::conj(filter_data[i]);
+//             }
+//             grad_data_c[i] = write_rrii(res);
+//             // grad_data_c[i] = (threadIdx.x == 0) && (i == 0) ?
+//             //     pointwise_mul(grad_data_c[i], filter_data[i]) : grad_data_c[i] * std::conj(filter_data[i]);
+//         }
+
+//         __syncthreads();
+//         irfftfp16<IFFT>(grad_data_c, reinterpret_cast<cufftdx::detail::complex<__half2> *>(shared_mem));
+
+//         float du_data_local[2][EPT];
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             // du_data_local[i] = reinterpret_cast<float (&)[EPT * 2]>(grad_data_c)[i] + grad_data[i] * D_val;
+//             du_data_local[0][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(grad_data_c)[i].x) + grad_data[0][i] * D_val;
+//             du_data_local[1][i] = __half2float(reinterpret_cast<__half2 (&)[EPT * 2]>(grad_data_c)[i].y) + grad_data[1][i] * D_val;
+//         }
+
+//         float dv_data[2][EPT];
+//         // compute dv, and update du
+//         if (QV) {
+//             #pragma unroll
+//             for ( int i = 0; i < EPT; i++ ) {
+//                 // dv
+//                 dv_data[0][i] = du_data_local[0][i] * u_og_data_before_gelu[0][i];
+//                 dv_data[1][i] = du_data_local[1][i] * u_og_data_before_gelu[1][i];
+
+//                 // update du
+//                 du_data_local[0][i] = du_data_local[0][i] * v_data[0][i];
+//                 du_data_local[1][i] = du_data_local[1][i] * v_data[1][i];
+//             }
+//         }
+
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("u_og_data_before_gelu[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data_before_gelu[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("u_og_data_before_gelu[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", u_og_data_before_gelu[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+//         // if ((threadIdx.x == 0) && (blockIdx.x == 0) && (blockIdx.y == 0) && (blockIdx.z == 0) && (head_i == 0)) {
+//         //     printf("dv_data[0]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", dv_data[0][i]);
+//         //     }
+//         //     printf("\n");
+//         //     printf("dv_data[1]: ");
+//         //     for (int i = 0; i < EPT; i++) {
+//         //         printf("%.4f, ", dv_data[1][i]);
+//         //     }
+//         //     printf("\n");
+//         // }
+
+//         #pragma unroll
+//         for ( int i = 0; i < EPT; i++ ) {
+//             du_data[0][i] += du_data_local[0][i];
+//             du_data[1][i] += du_data_local[1][i];
+//         }
+
+//         // store dv using atomic add
+//         if (QV) {
+//             unsigned int dv_data_idx;
+//             unsigned int thread_id = threadIdx.x;
+//             #pragma unroll
+//             for (int i = 0; i < EPT / 2; ++i) {
+//                 // compute index based on thread idx, i, and head_i
+//                 dv_data_idx = FFT::block_dim.x * i + thread_id;
+//                 if (dv_data_idx < signal_size / 2) {
+//                     // add the real and imaginary parts separately
+//                     cfloat_t *loc = &reinterpret_cast<cfloat_t *>(dvData + head_fft_id * signal_size)[dv_data_idx];
+//                     atomicAdd(reinterpret_cast<float *>(loc), dv_data[0][i * 2]);
+//                     atomicAdd(reinterpret_cast<float *>(loc) + 1, dv_data[0][i * 2 + 1]);
+
+//                     // add the real and imaginary parts separately
+//                     loc = &reinterpret_cast<cfloat_t *>(dvData + head_fft_id * signal_size + H * signal_size)[dv_data_idx];
+//                     atomicAdd(reinterpret_cast<float *>(loc), dv_data[1][i * 2]);
+//                     atomicAdd(reinterpret_cast<float *>(loc) + 1, dv_data[1][i * 2 + 1]);
+//                 }
+//             }
+//         }
+//         // TODO: what if signal_size is odd?
+//     }
+
+//     unsigned int dfilter_id = global_fft_id;
+
+//     // There may be something wrong here??
+//     // Save dD
+//     using BlockReduceT = cub::BlockReduce<float, FFT::block_dim.x>;
+//     using TempStorageT = typename BlockReduceT::TempStorage;
+//     __syncthreads();
+//     dD_val[0] = BlockReduceT(reinterpret_cast<TempStorageT&>(shared_mem)).Sum(dD_val[0]);
+//     dD_val[1] = BlockReduceT(reinterpret_cast<TempStorageT&>(shared_mem)).Sum(dD_val[1]);
+//     if (threadIdx.x == 0) {
+//         *(dDData + dfilter_id) = dD_val[0];
+//         *(dDData + dfilter_id + H) = dD_val[1];
+//     }
+
+//     // Save dfilter
+//     float dfilter_extra [2] = { 0.f, 0.f };
+//     if (threadIdx.x == 0) {
+//         dfilter_extra[0] = dfilter_data[0][0].imag_;
+//         dfilter_data[0][0].imag_ = 0.f;
+//         dfilter_extra[1] = dfilter_data[1][0].imag_;
+//         dfilter_data[1][0].imag_ = 0.f;
+//     }
+
+//     BlockStore_dfilter().Store(dfilterData + dfilter_id * (N + 1), dfilter_data[0]);
+//     BlockStore_dfilter().Store(dfilterData + (dfilter_id + H) * (N + 1), dfilter_data[1]);
+//     if (threadIdx.x == 0) {
+//         *(dfilterData + dfilter_id * (N + 1) + N) = cfloat_t(dfilter_extra[0], 0.f);
+//         *(dfilterData + (dfilter_id + H) * (N + 1) + N) = cfloat_t(dfilter_extra[1], 0.f);
+//     }
+
+//     // Save results
+//     c10::complex<input_t> du_data_c[2][EPT / 2];
+//     #pragma unroll
+//     for (int i = 0; i < EPT / 2; ++i) {
+//         du_data_c[0][i] = c10::complex(input_t(du_data[0][i * 2]), input_t(du_data[0][i * 2 + 1]));
+//         du_data_c[1][i] = c10::complex(input_t(du_data[1][i * 2]), input_t(du_data[1][i * 2 + 1]));
+//     }
+//     BlockStore_dinput().Store(reinterpret_cast<c10::complex<input_t> *>(duData + global_fft_id * signal_size),
+//                               du_data_c[0], signal_size / 2);
+//     BlockStore_dinput().Store(reinterpret_cast<c10::complex<input_t> *>(duData + global_fft_id * signal_size + H * signal_size),
+//                               du_data_c[1], signal_size / 2);
+//     if (QV) {
+//         c10::complex<input_t> dq_data_c[2][EPT / 2];
+//         #pragma unroll
+//         for (int i = 0; i < EPT / 2; ++i) {
+//             dq_data_c[0][i] = c10::complex(input_t(dq_data[0][i * 2]), input_t(dq_data[0][i * 2 + 1]));
+//             dq_data_c[1][i] = c10::complex(input_t(dq_data[1][i * 2]), input_t(dq_data[1][i * 2 + 1]));
+//         }
+
+//         BlockStore_dinput().Store(reinterpret_cast<c10::complex<input_t> *>(dqData + global_fft_id * signal_size),  // check this pointer arithmetic
+//                               dq_data_c[0], signal_size / 2);
+//         BlockStore_dinput().Store(reinterpret_cast<c10::complex<input_t> *>(dqData + global_fft_id * signal_size + H * signal_size),  // check this pointer arithmetic
+//                               dq_data_c[1], signal_size / 2);
+//     }
+// }
+
 template <bool GELU_OUTPUT, uint FFT_SIZE, uint EPT, typename input_t, typename output_t=input_t>
 void fftconv_bwd_cuda(
     const output_t *dout, const input_t *u,
     const c10::complex<float> *filter,
     const input_t *v, int head_dim, const input_t *q,
-    const float *dropout_mask,
+    const float *D, const float *dropout_mask,
     input_t *du, c10::complex<float> *dfilter,
+    float *dD,
     float *dv, input_t *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, bool output_hbl_layout, bool fftfp16
@@ -1076,7 +1759,7 @@ void fftconv_bwd_cuda(
                                                    cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                    shared_memory_size ));
                 kernel<<<block, FFT::block_dim, shared_memory_size>>>(
-                    dout, u, filter, v, q, dropout_mask, du, dfilter, dv, dq, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
+                    dout, u, filter, v, q, D, dropout_mask, du, dfilter, dD, dv, dq, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
             });
             break;
         }
@@ -1139,7 +1822,7 @@ void fftconv_bwd_cuda(
                                                 cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                 shared_memory_size ));
                 kernel<<<block, FFT::block_dim, shared_memory_size>>>(
-                    dout, u, filter, v, q, dropout_mask, du, dfilter, dv, dq, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
+                    dout, u, filter, v, q, D, dropout_mask, du, dfilter, dD, dv, dq, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout);
             }
             break;
         }
@@ -1154,8 +1837,8 @@ void fftconv_bwd_cuda_dispatch(
     const output_t *dout,
     const input_t *u, const c10::complex<float> *filter,
     const input_t *v, int head_dim, const input_t *q,
-    const float *dropout_mask,
-    input_t *du, c10::complex<float> *dfilter,
+    const float *D, const float *dropout_mask,
+    input_t *du, c10::complex<float> *dfilter, float *dD,
     float *dv, input_t *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
@@ -1165,68 +1848,68 @@ void fftconv_bwd_cuda_dispatch(
         switch(fft_size) {
             case 16:
                 fftconv_bwd_cuda<GELU_OUTPUT, 8, 4, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 32:
                 fftconv_bwd_cuda<GELU_OUTPUT, 16, 4, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 64:
                 fftconv_bwd_cuda<GELU_OUTPUT, 32, 4, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 128:
                 fftconv_bwd_cuda<GELU_OUTPUT, 64, 4, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 256:
                 fftconv_bwd_cuda<GELU_OUTPUT, 128, 4, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 512:
                 fftconv_bwd_cuda<GELU_OUTPUT, 256, 8, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 1024:
                 fftconv_bwd_cuda<GELU_OUTPUT, 512, 16, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 2048:
                 fftconv_bwd_cuda<GELU_OUTPUT, 1024, 16, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 4096:
                 fftconv_bwd_cuda<GELU_OUTPUT, 2048, 8, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 8192:
                 fftconv_bwd_cuda<GELU_OUTPUT, 4096, 8, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             case 16384:
                 fftconv_bwd_cuda<GELU_OUTPUT, 8192, 8, input_t, output_t>(
-                    dout, u, filter, v, head_dim, q, dropout_mask,
-                    du, dfilter, dv, dq,
+                    dout, u, filter, v, head_dim, q, D, dropout_mask,
+                    du, dfilter, dD, dv, dq,
                     gelu, gelu_inp, gelu_q, batch_size, H, signal_size, batch_stride, H_stride, output_hbl_layout, fftfp16);
                 break;
             default:
@@ -1238,7 +1921,7 @@ void fftconv_bwd_cuda_dispatch(
 template void fftconv_fwd_cuda_dispatch<float, float>(
     const float *u, const c10::complex<float> *filter,
     const float *v, int head_dim, const float *q,
-    const float *dropout_mask, float *out,
+    const float *D, const float *dropout_mask, float *out,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
     bool output_hbl_layout, bool fftfp16);
@@ -1246,7 +1929,7 @@ template void fftconv_fwd_cuda_dispatch<float, float>(
 template void fftconv_fwd_cuda_dispatch<float, at::Half>(
     const float *u, const c10::complex<float> *filter,
     const float *v, int head_dim, const float *q,
-    const float *dropout_mask, at::Half *out,
+    const float *D, const float *dropout_mask, at::Half *out,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
     bool output_hbl_layout, bool fftfp16);
@@ -1254,7 +1937,7 @@ template void fftconv_fwd_cuda_dispatch<float, at::Half>(
 template void fftconv_fwd_cuda_dispatch<at::Half, at::Half>(
     const at::Half *u, const c10::complex<float> *filter,
     const at::Half *v, int head_dim, const at::Half *q,
-    const float *dropout_mask, at::Half *out,
+    const float *D, const float *dropout_mask, at::Half *out,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
     bool output_hbl_layout, bool fftfp16);
@@ -1262,7 +1945,7 @@ template void fftconv_fwd_cuda_dispatch<at::Half, at::Half>(
 template void fftconv_fwd_cuda_dispatch<at::BFloat16, at::BFloat16>(
     const at::BFloat16 *u, const c10::complex<float> *filter,
     const at::BFloat16 *v, int head_dim, const at::BFloat16 *q,
-    const float *dropout_mask, at::BFloat16 *out,
+    const float *D, const float *dropout_mask, at::BFloat16 *out,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
     bool output_hbl_layout, bool fftfp16);
@@ -1271,8 +1954,8 @@ template void fftconv_bwd_cuda_dispatch<float, float>(
     const float *dout,
     const float *u, const c10::complex<float> *filter,
     const float *v, int head_dim, const float *q,
-    const float *dropout_mask,
-    float *du, c10::complex<float> *dfilter,
+    const float *D, const float *dropout_mask,
+    float *du, c10::complex<float> *dfilter, float *dD,
     float *dv, float *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
@@ -1282,8 +1965,8 @@ template void fftconv_bwd_cuda_dispatch<float, at::Half>(
     const at::Half *dout,
     const float *u, const c10::complex<float> *filter,
     const float *v, int head_dim, const float *q,
-    const float *dropout_mask,
-    float *du, c10::complex<float> *dfilter,
+    const float *D, const float *dropout_mask,
+    float *du, c10::complex<float> *dfilter, float *dD,
     float *dv, float *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
@@ -1293,8 +1976,8 @@ template void fftconv_bwd_cuda_dispatch<at::Half, at::Half>(
     const at::Half *dout,
     const at::Half *u, const c10::complex<float> *filter,
     const at::Half *v, int head_dim, const at::Half *q,
-    const float *dropout_mask,
-    at::Half *du, c10::complex<float> *dfilter,
+    const float *D, const float *dropout_mask,
+    at::Half *du, c10::complex<float> *dfilter, float *dD,
     float *dv, at::Half *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,
@@ -1304,8 +1987,8 @@ template void fftconv_bwd_cuda_dispatch<at::BFloat16, at::BFloat16>(
     const at::BFloat16 *dout,
     const at::BFloat16 *u, const c10::complex<float> *filter,
     const at::BFloat16 *v, int head_dim, const at::BFloat16 *q,
-    const float *dropout_mask,
-    at::BFloat16 *du, c10::complex<float> *dfilter,
+    const float *D, const float *dropout_mask,
+    at::BFloat16 *du, c10::complex<float> *dfilter, float *dD,
     float *dv, at::BFloat16 *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size,

@@ -1,84 +1,87 @@
 import torch
 import torch.nn as nn
 
-from torch.utils.cpp_extension import load
+# from torch.utils.cpp_extension import load
+
+import math
 
 import os
 
 # mathdx_dir = os.environ['mathdx_dir']
 
-# from fftconv import fftconv_fwd, fftconv_bwd
+from fftconv import fftconv_fwd, fftconv_bwd
 
 # ninja build does not work unless include_dirs are abs path
-this_dir = os.path.dirname(os.path.abspath(__file__))
-cuda_dir = os.environ["CUDA_HOME"]
+# this_dir = os.path.dirname(os.path.abspath(__file__))
+# cuda_dir = os.environ["CUDA_HOME"]
 
 # cub_dir = os.environ["CUB_HOME"]
 
-tno_causal_cuda = load(
-    name="tno_causal_v12",
-    sources=["src/fftconv/fftconv.cpp", "src/fftconv/fftconv_cuda.cu"],
-    # extra_include_paths=[f"{mathdx_dir}/mathdx/22.02/include"],
-    extra_include_paths=[os.path.join(this_dir, 'mathdx/22.02/include'),
-                         os.path.join(cuda_dir, "include")
-                        #  f"{cub_dir}",
-                        #  os.path.join(this_dir, 'cub-1.17.2')
-                         ],
-    extra_cflags=['-g', '-march=native', '-funroll-loops'],
-    extra_cuda_cflags=['-O3', '--threads', '4', '-lineinfo', '--use_fast_math', '-std=c++17', '-arch=compute_70'],
-    # extra_include_paths=["/usr/local/cuda-11.2/targets/x86_64-linux/include/cuda/std/detail/libcxx/include",
-    #                      "/usr/local/cuda-11.2/targets/x86_64-linux/include/thrust/detail/complex"],
-    verbose=True,
-)
+# tno_causal_cuda = load(
+#     name="tno_causal_v12",
+#     sources=["src/fftconv/fftconv.cpp", "src/fftconv/fftconv_cuda.cu"],
+#     # extra_include_paths=[f"{mathdx_dir}/mathdx/22.02/include"],
+#     extra_include_paths=[os.path.join(this_dir, 'mathdx/22.02/include'),
+#                          os.path.join(cuda_dir, "targets/x86_64-linux/include")
+#                         #  f"{cub_dir}",
+#                         #  os.path.join(this_dir, 'cub-1.17.2')
+#                          ],
+#     extra_cflags=['-g', '-march=native', '-funroll-loops'],
+#     extra_cuda_cflags=['-O3', '--threads', '4', '-lineinfo', '--use_fast_math', '-std=c++17', '-arch=compute_70'],
+#     # extra_include_paths=["/usr/local/cuda-11.2/targets/x86_64-linux/include/cuda/std/detail/libcxx/include",
+#     #                      "/usr/local/cuda-11.2/targets/x86_64-linux/include/thrust/detail/complex"],
+#     verbose=True,
+# )
 
-class TnoCausal(torch.autograd.Function):
+class FFTConvFunc(torch.autograd.Function):
+
     @staticmethod
-    def forward(ctx, T, x, dropout_mask=None, gelu=True, force_fp16_output=False,
+    def forward(ctx, u, k, D=None, dropout_mask=None, gelu=True, force_fp16_output=False,
                 output_hbl_layout=False, v=None, head_dim=1, q=None, fftfp16=False, k_rev=None):
-        # T_fft: n, d
-        # x: b, n, d
-        b, n, d = x.shape
-        ctx.b = b
-        ctx.d = d
-        ctx.n = n
-        # must add contiguous, or the memory may be wrong!!!
+        # k: n, d
+        # u: b, n, d
         # n, d -> d, n
-        T = T.transpose(1, 0).contiguous()
+        k = k.transpose(1, 0).contiguous()
         # b, n, d -> b, d, n
-        x = x.transpose(2, 1).contiguous()
-        T_fft = torch.fft.rfft(T, dim=-1)
+        u = u.transpose(2, 1).contiguous()
         
-        ctx.save_for_backward(x, T_fft, dropout_mask, v, q)
+        seqlen = u.shape[-1]
+        fft_size = max(2 * 2 ** int(math.ceil(math.log2(seqlen))), 16)
+        k_f = torch.fft.rfft(k, n=fft_size)
+        
+        ctx.save_for_backward(u, k_f, D, dropout_mask, v, q)
         ctx.output_hbl_layout = output_hbl_layout
         ctx.head_dim = head_dim
         ctx.gelu = gelu
         ctx.fftfp16 = fftfp16
         ctx.has_k_rev = k_rev is not None
-        y = fftconv_fwd(x, T_fft, D, v, head_dim, q, dropout_mask, gelu, False, False, fft_size, force_fp16_output, output_hbl_layout, fftfp16)
+        out = fftconv_fwd(u, k_f, D, v, head_dim, q, dropout_mask, gelu, False, False, fft_size, force_fp16_output, output_hbl_layout, fftfp16)
         # b, d, n -> b, n, d
-        y = y.transpose(2, 1).contiguous()
-
-        return y
+        out = out.transpose(2, 1).contiguous()
+        
+        return out
 
     @staticmethod
-    def backward(ctx, gy):
-        x, T_fft, dropout_mask, v, q = ctx.saved_tensors
-        seqlen = x.shape[-1]
-        fft_size = max(2 * 2 ** int(math.ceil(math.log2(seqlen))), 16)
-        dx, dT_fft, dv, dq = fftconv_bwd(dout, x, T_fft, v, ctx.head_dim, q, dropout_mask, ctx.gelu, False, False, fft_size,
-                                   ctx.output_hbl_layout, ctx.fftfp16)
-        dT = torch.fft.irfft(dT_fft, n=fft_size)[..., :seqlen]
-        dk_rev = None
-        dv = None
-        # d, n -> n, d
-        dT = dT.transpose(1, 0).contiguous()
-        # b, d, n -> b, n, d
-        dx = dx.transpose(2, 1).contiguous()
+    def backward(ctx, dout):
+        # b, n, d -> b, d, n
+        dout = dout.transpose(2, 1).contiguous()
         
-        return dT, dx, None, None, None, None, dv if v is not None else None, None, dq if q is not None else None, None, dk_rev
+        u, k_f, D, dropout_mask, v, q = ctx.saved_tensors
+        seqlen = u.shape[-1]
+        fft_size = max(2 * 2 ** int(math.ceil(math.log2(seqlen))), 16)
+        du, dk_f, dD, dv, dq = fftconv_bwd(dout, u, k_f, D, v, ctx.head_dim, q, dropout_mask, ctx.gelu, False, False, fft_size,
+                                   ctx.output_hbl_layout, ctx.fftfp16)
+        dk = torch.fft.irfft(dk_f, n=fft_size, norm='forward')[..., :seqlen]
+        dk_rev = (None if not ctx.has_k_rev
+                  else torch.fft.irfft(dk_f.conj(), n=fft_size, norm='forward')[..., :seqlen])
+        # d, n -> n, d
+        dk = dk.transpose(1, 0).contiguous()
+        # b, d, n -> b, n, d
+        du = du.transpose(2, 1).contiguous()
 
+        return du, dk, dD, None, None, None, None, dv if v is not None else None, None, dq if q is not None else None, None, dk_rev
 
-class TnoCausalV11(nn.Module):
+class TnoCausalV12(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -94,4 +97,4 @@ class TnoCausalV11(nn.Module):
             o: b, n, d;
         """
 
-        return TnoCausal.apply(t, x)
+        return FFTConvFunc.apply(x, t)

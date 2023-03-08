@@ -366,3 +366,18 @@ tar xzf 1.17.2.tar.gz
 mv -r cub-1.17.2 .
 ```
 
+```
+Traceback (most recent call last):
+  File "launch_fftconv.py", line 6, in <module>
+    from fftconv import fftconv_fwd, fftconv_bwd
+ImportError: /nvme/zhongyiran/code/fast-tno/src/fftconv/fftconv.cpython-38-x86_64-linux-gnu.so: undefined symbol: _Z25fftconv_fwd_cuda_dispatchIffEvPKT_PKN3c107complexIfEES2_iS2_S2_PKfPT0_bbbiiimmibb
+
+nm -D --demangle --undefined-only fftconv.cpython-38-x86_64-linux-gnu.so | grep complex
+```
+https://github.com/RosettaCommons/binder/discussions/188
+
+change fwd D dtype to float.
+
+
+cuda 12.0
+https://www.jianshu.com/p/333db8e68dc4

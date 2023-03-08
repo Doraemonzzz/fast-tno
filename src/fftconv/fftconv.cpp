@@ -3,8 +3,9 @@
 #include <cmath>
 #include <torch/extension.h>
 
-// #include <cuda/std/complex>
-#include <complex>
+#include <cuda/std/complex>
+// #include <complex>
+// #include <c10/util/complex.h>
 #include <cuda_fp16.h>
 
 #define CHECK_DEVICE(x) TORCH_CHECK(x.device().type() == torch::kCUDA, #x " must be on CUDA")
@@ -35,7 +36,7 @@ template <typename input_t, typename output_t=input_t>
 void fftconv_fwd_cuda_dispatch(
     const input_t *u, const c10::complex<float> *filter,
     const input_t *v, int head_dim, const input_t *q,
-    const float *dropout_mask, output_t *out,
+    const float *D, const float *dropout_mask, output_t *out,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
     size_t batch_stride, size_t H_stride, int fft_size, bool output_hbl_layout, bool fftfp16);
 
@@ -44,7 +45,7 @@ void fftconv_bwd_cuda_dispatch(
     const output_t *dout,
     const input_t *u, const c10::complex<float> *filter,
     const input_t *v, int head_dim, const input_t *q,
-    const float *dropout_mask,
+    const float *D, const float *dropout_mask,
     input_t *du, c10::complex<float> *dfilter, float *dD,
     float *dv, input_t *dq,
     bool gelu, bool gelu_inp, bool gelu_q, int batch_size, int H, int signal_size,
@@ -52,6 +53,7 @@ void fftconv_bwd_cuda_dispatch(
     bool output_hbl_layout, bool fftfp16);
 
 torch::Tensor fftconv_fwd(torch::Tensor u, torch::Tensor filter,
+                          c10::optional<torch::Tensor> D, //torch::Tensor D,
                           c10::optional<torch::Tensor> v, int head_dim, 
                           c10::optional<torch::Tensor> q,
                           c10::optional<torch::Tensor> dropout_mask,
@@ -61,17 +63,22 @@ torch::Tensor fftconv_fwd(torch::Tensor u, torch::Tensor filter,
                           ) {
     CHECK_DEVICE(u);
     CHECK_DEVICE(filter);
+    // CHECK_DEVICE(D);
 
     TORCH_CHECK(u.stride(-1) == 1);
     TORCH_CHECK(filter.is_contiguous());
+    // TORCH_CHECK(D.is_contiguous());
 
     const int batch_size = u.size(0);
     const int H = u.size(1);
     const int L = u.size(2);
     CHECK_SHAPE(u, batch_size, H, L);
     CHECK_SHAPE(filter, H / head_dim, fft_size / 2 + 1);
+    // CHECK_SHAPE(D, H / head_dim);
 
     TORCH_CHECK(u.dtype() == torch::kFloat16 || u.dtype() == torch::kFloat32 || u.dtype() == torch::kBFloat16);
+    // TODO: check filter.dtype is complex64 (no complex32)
+    // TORCH_CHECK(D.dtype() == torch::kFloat32);
 
     if (dropout_mask.has_value()) {
         auto dropout_mask_value = dropout_mask.value();
@@ -117,6 +124,7 @@ torch::Tensor fftconv_fwd(torch::Tensor u, torch::Tensor filter,
             v.has_value() ? static_cast<input_t *>(v.value().data_ptr()) : nullptr,
             head_dim,
             q.has_value() ? static_cast<input_t *>(q.value().data_ptr()) : nullptr,
+            D.has_value() ? static_cast<float *>(D.value().data_ptr()) : nullptr, // static_cast<float *>(D.data_ptr()), 
             dropout_mask.has_value() ? static_cast<float *>(dropout_mask.value().data_ptr()) : nullptr,
             static_cast<output_t *>(out.data_ptr()),
             gelu, gelu_inp, gelu_q, batch_size, H, L, batch_stride, H_stride, fft_size,
@@ -129,6 +137,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 fftconv_bwd(torch::Tensor dout,
             torch::Tensor u,
             torch::Tensor filter,
+            c10::optional<torch::Tensor> D, // torch::Tensor D,
             c10::optional<torch::Tensor> v, int head_dim, 
             c10::optional<torch::Tensor> q,
             c10::optional<torch::Tensor> dropout_mask,
@@ -137,9 +146,11 @@ fftconv_bwd(torch::Tensor dout,
     CHECK_DEVICE(dout);
     CHECK_DEVICE(u);
     CHECK_DEVICE(filter);
+    // CHECK_DEVICE(D);
 
     TORCH_CHECK(u.stride(-1) == 1);
     TORCH_CHECK(filter.is_contiguous());
+    // TORCH_CHECK(D.is_contiguous());
 
     const int batch_size = u.size(0);
     const int H = u.size(1);
@@ -147,6 +158,7 @@ fftconv_bwd(torch::Tensor dout,
     CHECK_SHAPE(dout, batch_size, H, L);
     CHECK_SHAPE(u, batch_size, H, L);
     CHECK_SHAPE(filter, H / head_dim, fft_size / 2 + 1);
+    // CHECK_SHAPE(D, H / head_dim);
     if (!output_hbl_layout) {
         TORCH_CHECK(dout.is_contiguous());
     } else {
@@ -159,11 +171,13 @@ fftconv_bwd(torch::Tensor dout,
 
     TORCH_CHECK(dout.dtype() == torch::kFloat16 || dout.dtype() == torch::kFloat32 || dout.dtype() == torch::kBFloat16);
     TORCH_CHECK(u.dtype() == torch::kFloat16 || u.dtype() == torch::kFloat32 || u.dtype() == torch::kBFloat16);
+    // TORCH_CHECK(D.dtype() == torch::kFloat32);
 
     auto opts = u.options();
 
     torch::Tensor dv;
     torch::Tensor dq;
+    torch::Tensor dD;
 
     if (dropout_mask.has_value()) {
         auto dropout_mask_value = dropout_mask.value();
@@ -196,7 +210,7 @@ fftconv_bwd(torch::Tensor dout,
 
     auto du = torch::empty_like(u);
     auto dfilter = torch::empty({batch_size, H / head_dim, head_dim, fft_size / 2 + 1}, opts.dtype(filter.dtype()));
-    auto dD = torch::empty({batch_size, H / head_dim, head_dim}, opts.dtype(torch::kFloat));
+    // auto dD = torch::empty({batch_size, H / head_dim, head_dim}, opts.dtype(torch::kFloat));
 
     TORCH_CHECK((L <= fft_size / 2) && (L % 2 == 0));
     TORCH_CHECK(fft_size >= 16 && fft_size <= 16384 && (fft_size == 1 << int(log2(float(fft_size)))));
@@ -210,25 +224,22 @@ fftconv_bwd(torch::Tensor dout,
             v.has_value() ? static_cast<input_t *>(v.value().data_ptr()) : nullptr,
             head_dim,
             q.has_value() ? static_cast<input_t *>(q.value().data_ptr()) : nullptr,
+            nullptr, // static_cast<float *>(D.data_ptr()),
             dropout_mask.has_value() ? static_cast<float *>(dropout_mask.value().data_ptr()) : nullptr,
             static_cast<input_t *>(du.data_ptr()),
             static_cast<c10::complex<float> *>(dfilter.data_ptr()),
-            static_cast<float *>(dD.data_ptr()),
+            nullptr, // static_cast<float *>(dD.data_ptr()),
             v.has_value() ? static_cast<float *>(dv.data_ptr()) : nullptr,
             q.has_value() ? static_cast<input_t *>(dq.data_ptr()) : nullptr,
             gelu, gelu_inp, gelu_q, batch_size, H, L, batch_stride, H_stride, fft_size,
             output_hbl_layout, fftfp16);
     });
 
-    return std::make_tuple(du, dfilter.sum(/*dim=*/std::vector<int64_t>{0, 2}), dD.sum(/*dim=*/std::vector<int64_t>{0, 2}), dv, dq);
+    // return std::make_tuple(du, dfilter.sum(/*dim=*/std::vector<int64_t>{0, 2}), dD.sum(/*dim=*/std::vector<int64_t>{0, 2}), dv, dq);
+    return std::make_tuple(du, dfilter.sum(/*dim=*/std::vector<int64_t>{0, 2}), dD, dv, dq);
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("fftconv_fwd", &fftconv_fwd, "Convolution with FFT");
     m.def("fftconv_bwd", &fftconv_bwd, "Convolution with FFT, backward");
-}
-
-TORCH_LIBRARY(tno_causal_v11, m) {
-    m.def("fftconv_fwd", fftconv_fwd);
-    m.def("fftconv_bwd", fftconv_bwd);
 }
