@@ -75,6 +75,7 @@ Backward mode:
 - [x] Add cpu/gpu speed stat and curve.
 - [x] Add develop log.
 - [x] Add profile.
+- [x] Porting fftconv from H3.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
 - [ ] 
@@ -85,3 +86,4 @@ Backward mode:
 
 - [https://gist.github.com/iacolippo/9611c6d9c7dfc469314baeb5a69e7e1b](https://gist.github.com/iacolippo/9611c6d9c7dfc469314baeb5a69e7e1b)
 - [https://github.com/BlinkDL/RWKV-CUDA](https://github.com/BlinkDL/RWKV-CUDA)
+- [https://github.com/HazyResearch/H3](https://github.com/HazyResearch/H3)
