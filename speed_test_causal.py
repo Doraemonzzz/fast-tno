@@ -1,9 +1,11 @@
-import torch
 import sys
+
+import torch
 from torch.autograd import gradcheck
 
 # from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5, TnoCausalV6, TnoCausalV7, TnoCausalV8, TnoCausalV9, TnoCausalV10, TnoCausalV11, TnoCausalV12
-from src import TnoFFT, TnoCausalV3, TnoCausalV12
+from src import TnoCausalV3, TnoCausalV12, TnoFFT
+
 
 def get_model_name(model):
     name = str(type(model)).split(".")[-1].split("'")[0]
@@ -75,6 +77,7 @@ def speed_test(b, n, d):
             ),
         )
 
+
 # n test
 b = 8
 d = 64
@@ -94,7 +97,7 @@ for d in [64, 128, 256, 512, 1024]:
     sys.stdout = fb
     speed_test(b, n, d)
     fb.close()
-    
+
 ## b test
 d = 512
 n = 2048

@@ -2,9 +2,5 @@ Obtaining file:///nvme/zhongyiran/code/fast-tno/src/fftconv
   Preparing metadata (setup.py): started
   Preparing metadata (setup.py): finished with status 'done'
 Installing collected packages: fftconv
-  Attempting uninstall: fftconv
-    Found existing installation: fftconv 0.1
-    Uninstalling fftconv-0.1:
-      Successfully uninstalled fftconv-0.1
   Running setup.py develop for fftconv
 Successfully installed fftconv-0.1

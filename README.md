@@ -76,9 +76,9 @@ Backward mode:
 - [x] Add develop log.
 - [x] Add profile.
 - [x] Porting fftconv from H3.
+- [ ] Fix fftconv value bug.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
-- [ ] 
 
 
 

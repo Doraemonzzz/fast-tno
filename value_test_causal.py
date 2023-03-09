@@ -2,7 +2,8 @@ import torch
 from torch.autograd import gradcheck
 
 # from src import TnoMatrix, TnoFFT, TnoCausalV1, TnoCausalV2, TnoCausalV3, TnoCausalV4, TnoCausalV5, TnoCausalV6, TnoCausalV7, TnoCausalV8, TnoCausalV9, TnoCausalV10, TnoCausalV11, FFTConvFunc
-from src import TnoMatrix, TnoFFT, TnoCausalV12
+from src import TnoCausalV12, TnoFFT, TnoMatrix
+
 
 def get_model_name(model):
     name = str(type(model)).split(".")[-1].split("'")[0]
