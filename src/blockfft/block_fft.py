@@ -4,7 +4,6 @@ import torch
 from einops import rearrange
 import math
 from torch import nn
-from src.models.nn import Activation
 
 def Activation(activation=None, size=None, dim=-1):
     if activation in [ None, 'id', 'identity', 'linear' ]:

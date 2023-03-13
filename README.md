@@ -106,7 +106,8 @@ medium: "wps": "7453.3", "ups": "1.82", "wpb": "4096"
 - [x] Add develop log.
 - [x] Add profile.
 - [x] Porting fftconv from H3.
-- [ ] Fix fftconv value bug.
+- [x] Add Block FFT.
+- [x] Fix fftconv value bug.
 - [ ] Add memory stat and curve.
 - [ ] Add support for fp16 and bf16.
 
