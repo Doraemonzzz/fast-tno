@@ -1,1 +1,5 @@
 **/__pycache__/**
+**/**.log
+**.so
+**/build/**
+**/*.egg-info/**

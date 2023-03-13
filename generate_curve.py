@@ -1,5 +1,6 @@
-import matplotlib.pyplot as plt
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
@@ -28,9 +29,9 @@ def get_stat(file_path):
                 if "us" in string:
                     time = float(string[:-2])
                 elif "ms" in string:
-                    time = 100 * float(string[:-2])
+                    time = 1000 * float(string[:-2])
                 else:
-                    time = 10000 * float(string[:-2])
+                    time = 1000000 * float(string[:-2])
                 stat[hardware][stage][name] = time
 
     return stat

@@ -9,6 +9,6 @@
 # from .cuda_causal_v9 import *
 # from .cuda_causal_v10 import *
 # from .cuda_causal_v11 import *
-from .fftconv import *
-from .blockfft import *
 from .baseline import *
+from .fftconv_v1 import *
+from .blockfft import *

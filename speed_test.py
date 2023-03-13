@@ -1,11 +1,12 @@
 import gc
-import numpy as np
 import sys
 import time
+
+import numpy as np
 import torch
-from torch.autograd import Variable
-import torchvision.models as models
 import torch.backends.cudnn as cudnn
+import torchvision.models as models
+from torch.autograd import Variable
 
 
 def measure(block, x, y, n=1000):

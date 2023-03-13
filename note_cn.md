@@ -346,18 +346,28 @@ todo。
 环境变量：
 
 ```
-export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64:${CUDA_HOME}/targets
-export mathdx_dir=/data/qinzhen/code/fast-tno/src/fftconv
+export CUDA_HOME=/usr/local/cuda-11.8
+export PATH=$CUDA_HOME/bin${PATH:+:${PATH}}
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${CUDA_HOME}/targets/x86_64-linux/include:$CUDA_HOME/include:/nvme/zhongyiran/miniconda3/envs/tno/lib/
+export LIBRARY_PATH=$CUDA_HOME/lib64
 ```
 
-gcc7
+gcc9:
 
 ```
 https://gist.github.com/jlblancoc/99521194aba975286c80f93e47966dc5
+export CC=/opt/rh/devtoolset-9/root/usr/bin/gcc
+export CXX=/opt/rh/devtoolset-9/root/usr/bin/g++
 ```
 
-torch 1.10+, cuda 11.0+
+torch:
+```
+torch 1.13.1+cu117
+```
+cuda 12.0
+- https://www.jianshu.com/p/333db8e68dc4
 
+### old version
 cub默认包含在cuda中，但现在不确定用哪个版本的cuda，所以手动包含一个版本的cub：
 
 ```
@@ -366,3 +376,18 @@ tar xzf 1.17.2.tar.gz
 mv -r cub-1.17.2 .
 ```
 
+```
+Traceback (most recent call last):
+  File "launch_fftconv.py", line 6, in <module>
+    from fftconv import fftconv_fwd, fftconv_bwd
+ImportError: /nvme/zhongyiran/code/fast-tno/src/fftconv/fftconv.cpython-38-x86_64-linux-gnu.so: undefined symbol: _Z25fftconv_fwd_cuda_dispatchIffEvPKT_PKN3c107complexIfEES2_iS2_S2_PKfPT0_bbbiiimmibb
+
+nm -D --demangle --undefined-only fftconv.cpython-38-x86_64-linux-gnu.so | grep complex
+```
+https://github.com/RosettaCommons/binder/discussions/188
+
+change fwd D dtype to float.
+
+
+cuda 12.0
+https://www.jianshu.com/p/333db8e68dc4

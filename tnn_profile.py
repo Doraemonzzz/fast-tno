@@ -2,10 +2,12 @@ import torch
 from tnn_pytorch import TnnLayer
 from torch.profiler import profile, record_function
 
+
 def get_model_name(model):
     name = str(type(model)).split(".")[-1].split("'")[0]
 
     return name
+
 
 # batch size
 b = 2
@@ -30,9 +32,11 @@ model = TnnLayer(
 
 print(model)
 
-with torch.autograd.profiler.profile(use_cuda=True, profile_memory=True, record_shapes=True, with_stack=True) as prof:
+with torch.autograd.profiler.profile(
+    use_cuda=True, profile_memory=True, record_shapes=True, with_stack=True
+) as prof:
     # with record_function("Gtu"):
-        # model(x)
+    # model(x)
     y = model(x)
 print(
     f"{get_model_name(model)} forward\n",
@@ -44,7 +48,7 @@ print(
 # prof.export_chrome_trace("trace.json")
 # prof.export_stacks("cuda.json", "self_cuda_time_total")
 
-loss = (y ** 2).sum()
+loss = (y**2).sum()
 with torch.autograd.profiler.profile(use_cuda=True) as prof:
     loss.backward()
 

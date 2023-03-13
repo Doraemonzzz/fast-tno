@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-
 from torch.utils.cpp_extension import load
 
 tno_causal_cuda = load(
