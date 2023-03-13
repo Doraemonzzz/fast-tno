@@ -10,4 +10,5 @@
 # from .cuda_causal_v10 import *
 # from .cuda_causal_v11 import *
 from .fftconv import *
+from .blockfft import *
 from .baseline import *
